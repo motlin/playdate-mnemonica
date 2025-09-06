@@ -5,10 +5,15 @@
 ### Playing Cards
 
 - **Location**: `source/images/cards.png`
-- **Format**: 32x32 pixel sprites in a grid
-- **Contents**: All 52 cards + 4 different card back designs
-- **Layout**: 4 rows × 14 columns sprite sheet
-- **Card Order**: A-K of each suit in rows (Spades, Diamonds, Clubs, Hearts)
+- **Format**: 50x70 pixel sprites in a grid
+- **Contents**: All 52 cards + jokers + card back designs
+- **Layout**: 5 rows × 13 columns sprite sheet (650×350 pixels total)
+- **Card Order**:
+  - Row 1: Blank card, jokers, and various card back designs
+  - Row 2: A-K of Spades
+  - Row 3: A-K of Diamonds
+  - Row 4: A-K of Hearts
+  - Row 5: A-K of Clubs
 
 ### Sound Effects
 
@@ -135,11 +140,11 @@ Test Unicode first, fall back to letters if needed.
 
 ### Converting the card sprite sheet:
 
-The Playdate uses "image tables" for sprite sheets. The cards.png will need to be:
+The cards.png sprite sheet is manually parsed in code:
 
-1. Converted to Playdate's format (.pdt)
-2. Split into individual 32x32 frames
-3. Indexed properly for card lookups
+1. Loaded as a single 650×350 pixel image
+2. Split into individual 50×70 pixel frames
+3. Indexed with proper row offsets (row 1 has card backs, rows 2-5 have playing cards)
 
 ### Sound format requirements:
 
