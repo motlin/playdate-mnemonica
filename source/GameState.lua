@@ -70,6 +70,23 @@ function GameState:new()
     state.soundEnabled = true
     state.crankSensitivity = 1.0
 
+    -- Card statistics for spaced repetition
+    -- Each entry tracks performance for a specific card/position pair
+    state.cardStats = {}
+    for i = 1, 52 do
+        state.cardStats[i] = {
+            timesAsked = 0,
+            timesCorrect = 0,
+            timesIncorrect = 0,
+            lastAsked = 0,  -- Timestamp of last time this was asked
+            streak = 0,     -- Current correct answer streak
+            difficulty = 1.0  -- Difficulty weight for spaced repetition (higher = harder)
+        }
+    end
+
+    -- Load any saved card statistics
+    state:loadCardStats()
+
     return state
 end
 
@@ -105,20 +122,116 @@ function GameState:startQuiz(mode)
 end
 
 -- Initialize shuffled question order using Fisher-Yates algorithm
-function GameState:initializeQuestionOrder()
+function GameState:initializeQuestionOrder(useSpacedRepetition)
     self.questionOrder = {}
-    for i = 1, self.totalQuestions do
-        self.questionOrder[i] = i
-    end
 
-    -- Fisher-Yates shuffle
-    for i = #self.questionOrder, 2, -1 do
-        local j = math.random(1, i)
-        self.questionOrder[i], self.questionOrder[j] = self.questionOrder[j], self.questionOrder[i]
+    if useSpacedRepetition and self:hasEnoughDataForSpacedRepetition() then
+        -- Use weighted random selection based on difficulty
+        self:initializeSpacedRepetitionOrder()
+    else
+        -- Standard Fisher-Yates shuffle
+        for i = 1, self.totalQuestions do
+            self.questionOrder[i] = i
+        end
+
+        for i = #self.questionOrder, 2, -1 do
+            local j = math.random(1, i)
+            self.questionOrder[i], self.questionOrder[j] = self.questionOrder[j], self.questionOrder[i]
+        end
     end
 
     self.questionIndex = 1
     self.currentPosition = self.questionOrder[1]
+end
+
+-- Check if we have enough data to use spaced repetition
+function GameState:hasEnoughDataForSpacedRepetition()
+    local totalAsked = 0
+    for i = 1, 52 do
+        totalAsked = totalAsked + self.cardStats[i].timesAsked
+    end
+    -- Need at least 52 questions answered (one full deck) before using spaced repetition
+    return totalAsked >= 52
+end
+
+-- Initialize question order using spaced repetition algorithm
+function GameState:initializeSpacedRepetitionOrder()
+    -- Create weighted pool based on difficulty and time since last asked
+    local weightedPool = {}
+    local currentTime = pd.getCurrentTimeMilliseconds() / 1000
+
+    for position = 1, 52 do
+        local stats = self.cardStats[position]
+        local weight = stats.difficulty
+
+        -- Increase weight if it's been a while since last asked
+        if stats.lastAsked > 0 then
+            local timeSinceLastAsked = currentTime - stats.lastAsked
+            -- Add weight for cards not seen recently (more than 5 minutes)
+            if timeSinceLastAsked > 300 then
+                weight = weight * (1 + (timeSinceLastAsked / 300) * 0.5)
+            end
+        end
+
+        -- Cards with low success rate get higher weight
+        if stats.timesAsked > 0 then
+            local successRate = stats.timesCorrect / stats.timesAsked
+            if successRate < 0.5 then
+                weight = weight * 2
+            elseif successRate < 0.7 then
+                weight = weight * 1.5
+            end
+        end
+
+        -- Add this position to the weighted pool
+        table.insert(weightedPool, {position = position, weight = weight})
+    end
+
+    -- Sort by weight (highest difficulty first)
+    table.sort(weightedPool, function(a, b) return a.weight > b.weight end)
+
+    -- Create question order with bias towards difficult cards
+    self.questionOrder = {}
+    local remaining = {}
+    for _, item in ipairs(weightedPool) do
+        table.insert(remaining, item.position)
+    end
+
+    -- Take 70% of cards weighted by difficulty, 30% random
+    local weightedCount = math.floor(52 * 0.7)
+    local addedPositions = {}
+
+    -- Add weighted selections (more difficult cards appear earlier)
+    for i = 1, weightedCount do
+        if #remaining > 0 then
+            -- Use weighted random selection biased towards beginning of array
+            local maxIndex = math.min(#remaining, 10)  -- Consider top 10 most difficult
+            local index = math.random(1, maxIndex)
+            local position = remaining[index]
+            table.insert(self.questionOrder, position)
+            addedPositions[position] = true
+            table.remove(remaining, index)
+        end
+    end
+
+    -- Add remaining cards in random order
+    for i = #remaining, 1, -1 do
+        local j = math.random(1, i)
+        remaining[i], remaining[j] = remaining[j], remaining[i]
+    end
+
+    for _, position in ipairs(remaining) do
+        table.insert(self.questionOrder, position)
+    end
+
+    -- Final shuffle to add some randomness while keeping difficult cards toward the beginning
+    for i = 1, 10 do
+        local j = math.random(1, 20)  -- Only shuffle within first 20 positions
+        local k = math.random(1, 20)
+        if j <= #self.questionOrder and k <= #self.questionOrder then
+            self.questionOrder[j], self.questionOrder[k] = self.questionOrder[k], self.questionOrder[j]
+        end
+    end
 end
 
 -- Submit an answer
@@ -130,12 +243,16 @@ function GameState:submitAnswer(answer, passed)
     if passed then
         self.questionsPassed = self.questionsPassed + 1
         self.userWasCorrect = false
+        -- Update card statistics for passed questions (counts as incorrect)
+        self:updateCardStats(self.currentPosition, false)
     else
         self.userWasCorrect = (answer == self.correctAnswer)
 
         if self.userWasCorrect then
             self.score = self.score + 1
             self.questionsCorrect = self.questionsCorrect + 1
+            -- Update card statistics for correct answer
+            self:updateCardStats(self.currentPosition, true)
         else
             self.questionsIncorrect = self.questionsIncorrect + 1
             -- Track mistake for review
@@ -144,6 +261,8 @@ function GameState:submitAnswer(answer, passed)
                 correctAnswer = self.correctAnswer,
                 userAnswer = answer
             })
+            -- Update card statistics for incorrect answer
+            self:updateCardStats(self.currentPosition, false)
         end
     end
 
@@ -296,7 +415,12 @@ function GameState:saveState()
         questionsIncorrect = self.questionsIncorrect,
         questionsPassed = self.questionsPassed,
         soundEnabled = self.soundEnabled,
-        crankSensitivity = self.crankSensitivity
+        crankSensitivity = self.crankSensitivity,
+        selectedAnswer = self.selectedAnswer,
+        correctAnswer = self.correctAnswer,
+        userAnswer = self.userAnswer,
+        userWasCorrect = self.userWasCorrect,
+        userPassed = self.userPassed
     }
 
     pd.datastore.write(stateData, "gamestate")
@@ -320,6 +444,67 @@ function GameState:clearSavedState()
     pd.datastore.delete("gamestate")
 end
 
+-- Save card statistics for spaced repetition
+function GameState:saveCardStats()
+    pd.datastore.write(self.cardStats, "cardstats")
+end
+
+-- Load card statistics from persistent storage
+function GameState:loadCardStats()
+    local savedStats = pd.datastore.read("cardstats")
+    if savedStats then
+        self.cardStats = savedStats
+    end
+end
+
+-- Update card statistics after answering a question
+function GameState:updateCardStats(position, wasCorrect)
+    local stats = self.cardStats[position]
+    if stats then
+        stats.timesAsked = stats.timesAsked + 1
+        stats.lastAsked = pd.getCurrentTimeMilliseconds() / 1000
+
+        if wasCorrect then
+            stats.timesCorrect = stats.timesCorrect + 1
+            stats.streak = stats.streak + 1
+            -- Reduce difficulty when answered correctly
+            stats.difficulty = math.max(0.1, stats.difficulty * 0.9)
+        else
+            stats.timesIncorrect = stats.timesIncorrect + 1
+            stats.streak = 0
+            -- Increase difficulty when answered incorrectly
+            stats.difficulty = math.min(10.0, stats.difficulty * 1.5)
+        end
+
+        -- Auto-save card stats after each update
+        self:saveCardStats()
+    end
+end
+
+-- Get success rate for a specific position
+function GameState:getCardSuccessRate(position)
+    local stats = self.cardStats[position]
+    if stats and stats.timesAsked > 0 then
+        return stats.timesCorrect / stats.timesAsked
+    end
+    return 0
+end
+
+-- Reset all card statistics
+function GameState:resetCardStats()
+    for i = 1, 52 do
+        self.cardStats[i] = {
+            timesAsked = 0,
+            timesCorrect = 0,
+            timesIncorrect = 0,
+            lastAsked = 0,
+            streak = 0,
+            difficulty = 1.0
+        }
+    end
+    self:saveCardStats()
+end
+
 -- Pause the game
 function GameState:pause()
     self.isPaused = true
@@ -336,10 +521,11 @@ end
 
 -- Reset to initial state
 function GameState:reset()
-    -- Keep high scores and settings
+    -- Keep high scores, settings, and card statistics
     local savedHighScores = self.highScores
     local savedSoundEnabled = self.soundEnabled
     local savedCrankSensitivity = self.crankSensitivity
+    local savedCardStats = self.cardStats
 
     -- Re-initialize
     local newState = GameState:new()
@@ -351,6 +537,7 @@ function GameState:reset()
     self.highScores = savedHighScores
     self.soundEnabled = savedSoundEnabled
     self.crankSensitivity = savedCrankSensitivity
+    self.cardStats = savedCardStats
 end
 
 return GameState

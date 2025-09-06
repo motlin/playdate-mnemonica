@@ -7,7 +7,7 @@ local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
 
 -- Initialize GameState manager
-local GameState = require("GameState")
+import "GameState"
 local gameState = GameState:new()
 
 -- Load card sprites as a single image
