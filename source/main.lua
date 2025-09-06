@@ -4,26 +4,49 @@ import "CoreLibs/ui"
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
--- Mnemonica stack order (1-52)
+-- Load card sprites
+local cardImageTable = gfx.imagetable.new("images/cards")
+assert(cardImageTable, "Failed to load card images")
+
+-- Card lookup mapping (card name to sprite index)
+-- The sprite sheet has 4 rows x 14 columns
+-- Row 1: A-K of Spades (indices 1-13)
+-- Row 2: A-K of Diamonds (indices 15-27)
+-- Row 3: A-K of Clubs (indices 29-41)
+-- Row 4: A-K of Hearts (indices 43-55)
+local cardToIndex = {}
+local suits = {"S", "D", "C", "H"}
+local suitOffsets = {0, 14, 28, 42}  -- Starting indices for each suit
+local ranks = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"}
+
+-- Build card name to sprite index mapping
+for suitIdx, suit in ipairs(suits) do
+    for rankIdx, rank in ipairs(ranks) do
+        local cardName = rank .. suit
+        cardToIndex[cardName] = suitOffsets[suitIdx] + rankIdx
+    end
+end
+
+-- Mnemonica stack order (1-52) - using S/D/C/H for suits
 local mnemonicaStack = {
-    "4♣", "2♥", "7♦", "3♣", "4♥", "6♦", "A♠", "5♥", "9♠", "2♠",
-    "Q♥", "3♦", "Q♣", "8♥", "6♠", "5♠", "9♥", "K♣", "2♦", "J♥",
-    "3♠", "8♠", "6♥", "10♣", "5♦", "K♦", "2♣", "3♥", "8♦", "5♣",
-    "K♠", "J♦", "8♣", "10♠", "K♥", "J♣", "7♠", "10♥", "A♦", "4♠",
-    "7♥", "4♦", "A♣", "9♣", "J♠", "Q♦", "7♣", "Q♠", "10♦", "6♣",
-    "A♥", "9♦"
+    "4C", "2H", "7D", "3C", "4H", "6D", "AS", "5H", "9S", "2S",
+    "QH", "3D", "QC", "8H", "6S", "5S", "9H", "KC", "2D", "JH",
+    "3S", "8S", "6H", "10C", "5D", "KD", "2C", "3H", "8D", "5C",
+    "KS", "JD", "8C", "10S", "KH", "JC", "7S", "10H", "AD", "4S",
+    "7H", "4D", "AC", "9C", "JS", "QD", "7C", "QS", "10D", "6C",
+    "AH", "9D"
 }
 
--- USPCC new deck order for crank selection (1-52)
+-- USPCC new deck order for crank selection (1-52) - using S/D/C/H for suits
 local uspccOrder = {
-    -- A♠ through K♠ (positions 1-13)
-    "A♠", "2♠", "3♠", "4♠", "5♠", "6♠", "7♠", "8♠", "9♠", "10♠", "J♠", "Q♠", "K♠",
-    -- A♦ through K♦ (positions 14-26)
-    "A♦", "2♦", "3♦", "4♦", "5♦", "6♦", "7♦", "8♦", "9♦", "10♦", "J♦", "Q♦", "K♦",
-    -- K♣ through A♣ (positions 27-39, reversed)
-    "K♣", "Q♣", "J♣", "10♣", "9♣", "8♣", "7♣", "6♣", "5♣", "4♣", "3♣", "2♣", "A♣",
-    -- K♥ through A♥ (positions 40-52, reversed)
-    "K♥", "Q♥", "J♥", "10♥", "9♥", "8♥", "7♥", "6♥", "5♥", "4♥", "3♥", "2♥", "A♥"
+    -- A through K of Spades (positions 1-13)
+    "AS", "2S", "3S", "4S", "5S", "6S", "7S", "8S", "9S", "10S", "JS", "QS", "KS",
+    -- A through K of Diamonds (positions 14-26)
+    "AD", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "JD", "QD", "KD",
+    -- K through A of Clubs (positions 27-39, reversed)
+    "KC", "QC", "JC", "10C", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "2C", "AC",
+    -- K through A of Hearts (positions 40-52, reversed)
+    "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H", "AH"
 }
 
 -- Game state
@@ -38,6 +61,31 @@ local userWasCorrect = false
 -- Crank handling
 local lastCrankValue = 0
 local crankAccumulator = 0
+
+-- Helper function to get card image from card name
+local function getCardImage(cardName)
+    local index = cardToIndex[cardName]
+    if index then
+        return cardImageTable:getImage(index)
+    end
+    return nil
+end
+
+-- Helper function to draw a card centered at position
+local function drawCard(cardName, x, y, scale)
+    local cardImage = getCardImage(cardName)
+    if cardImage then
+        if scale and scale ~= 1 then
+            local scaledImage = cardImage:scaledImage(scale)
+            scaledImage:drawCentered(x, y)
+        else
+            cardImage:drawCentered(x, y)
+        end
+    else
+        -- Fallback to text if image not found
+        gfx.drawTextAligned(cardName, x, y, kTextAlignment.center)
+    end
+end
 
 local function updateSelectedCard()
     local crankValue = pd.getCrankPosition()
@@ -106,13 +154,11 @@ local function drawQuiz()
 
     -- Draw question
     local questionText = "Position " .. currentPosition .. "?"
-    gfx.drawTextAligned(questionText, 200, 50, kTextAlignment.center)
+    gfx.drawTextAligned(questionText, 200, 30, kTextAlignment.center)
 
-    -- Draw selected card
+    -- Draw selected card (scaled up for visibility)
     local selectedCardName = uspccOrder[selectedCard]
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(selectedCardName, 200, 120, kTextAlignment.center)
-    gfx.setFont() -- Reset to default font
+    drawCard(selectedCardName, 200, 100, 2)  -- 2x scale for better visibility
 
     -- Draw crank indicator if docked
     if pd.isCrankDocked() then
@@ -121,35 +167,37 @@ local function drawQuiz()
 
     -- Draw progress
     local progressText = "Question " .. currentPosition .. " of 52"
-    gfx.drawTextAligned(progressText, 200, 200, kTextAlignment.center)
+    gfx.drawTextAligned(progressText, 200, 180, kTextAlignment.center)
 
     -- Draw instructions
-    gfx.drawTextAligned("🎯 Use crank to select card", 200, 220, kTextAlignment.center)
-    gfx.drawTextAligned("Ⓐ Confirm answer", 200, 230, kTextAlignment.center)
+    gfx.drawTextAligned("Use crank to select card", 200, 210, kTextAlignment.center)
+    gfx.drawTextAligned("(A) Confirm answer", 200, 225, kTextAlignment.center)
 end
 
 local function drawFeedback()
     gfx.clear()
 
     if userWasCorrect then
-        gfx.drawTextAligned("✅ Correct!", 200, 80, kTextAlignment.center)
+        gfx.drawTextAligned("Correct!", 200, 40, kTextAlignment.center)
     else
-        gfx.drawTextAligned("❌ Wrong!", 200, 60, kTextAlignment.center)
-        gfx.drawTextAligned("Correct answer: " .. correctAnswer, 200, 100, kTextAlignment.center)
+        gfx.drawTextAligned("Wrong!", 200, 40, kTextAlignment.center)
+        gfx.drawTextAligned("Correct answer:", 200, 70, kTextAlignment.center)
+        -- Draw the correct card
+        drawCard(correctAnswer, 200, 120, 2)  -- 2x scale
     end
 
     -- Draw score
     local scoreText = "Score: " .. score .. "/" .. (currentPosition)
-    gfx.drawTextAligned(scoreText, 200, 140, kTextAlignment.center)
+    gfx.drawTextAligned(scoreText, 200, 180, kTextAlignment.center)
 
     -- Draw continue instruction
-    gfx.drawTextAligned("Ⓐ Continue", 200, 180, kTextAlignment.center)
+    gfx.drawTextAligned("(A) Continue", 200, 210, kTextAlignment.center)
 end
 
 local function drawComplete()
     gfx.clear()
 
-    gfx.drawTextAligned("🎉 Quiz Complete!", 200, 60, kTextAlignment.center)
+    gfx.drawTextAligned("Quiz Complete!", 200, 60, kTextAlignment.center)
 
     local finalScore = "Final Score: " .. score .. "/52"
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
@@ -159,7 +207,7 @@ local function drawComplete()
     local percentage = math.floor((score / 52) * 100)
     gfx.drawTextAligned(percentage .. "% correct", 200, 130, kTextAlignment.center)
 
-    gfx.drawTextAligned("Ⓐ Play Again", 200, 180, kTextAlignment.center)
+    gfx.drawTextAligned("(A) Play Again", 200, 180, kTextAlignment.center)
 end
 
 function playdate.update()
