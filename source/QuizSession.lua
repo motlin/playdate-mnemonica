@@ -16,6 +16,11 @@ function QuizSession:new(mode, totalQuestions)
     session.endTime = nil
     session.isComplete = false
 
+    -- Timer pause support
+    session.isPaused = false
+    session.pausedTime = 0  -- Total time spent paused
+    session.pauseStartTime = nil  -- When current pause started
+
     -- Question management
     session.questions = {}  -- Array of question objects
     session.currentQuestionIndex = 1
@@ -176,18 +181,43 @@ end
 function QuizSession:complete()
     if not self.isComplete then
         self.endTime = pd.getCurrentTimeMilliseconds() / 1000
-        self.statistics.elapsedTime = self.endTime - self.startTime
+        self.statistics.elapsedTime = self.endTime - self.startTime - self.pausedTime
         self.isComplete = true
+    end
+end
+
+-- Pause the timer
+function QuizSession:pauseTimer()
+    if not self.isPaused and not self.isComplete then
+        self.isPaused = true
+        self.pauseStartTime = pd.getCurrentTimeMilliseconds() / 1000
+    end
+end
+
+-- Resume the timer
+function QuizSession:resumeTimer()
+    if self.isPaused and self.pauseStartTime then
+        local currentTime = pd.getCurrentTimeMilliseconds() / 1000
+        self.pausedTime = self.pausedTime + (currentTime - self.pauseStartTime)
+        self.isPaused = false
+        self.pauseStartTime = nil
     end
 end
 
 -- Get elapsed time for the session
 function QuizSession:getElapsedTime()
     if self.isComplete and self.endTime then
-        return self.endTime - self.startTime
+        return self.endTime - self.startTime - self.pausedTime
     else
         local currentTime = pd.getCurrentTimeMilliseconds() / 1000
-        return currentTime - self.startTime
+        local activeTime = currentTime - self.startTime - self.pausedTime
+
+        -- If currently paused, don't count time since pause started
+        if self.isPaused and self.pauseStartTime then
+            activeTime = activeTime - (currentTime - self.pauseStartTime)
+        end
+
+        return activeTime
     end
 end
 
@@ -265,6 +295,9 @@ function QuizSession:export()
         startTime = self.startTime,
         endTime = self.endTime,
         isComplete = self.isComplete,
+        isPaused = self.isPaused,
+        pausedTime = self.pausedTime,
+        pauseStartTime = self.pauseStartTime,
         questions = self.questions,
         currentQuestionIndex = self.currentQuestionIndex,
         answers = self.answers,
@@ -284,6 +317,9 @@ function QuizSession:import(data)
     self.startTime = data.startTime
     self.endTime = data.endTime
     self.isComplete = data.isComplete
+    self.isPaused = data.isPaused or false
+    self.pausedTime = data.pausedTime or 0
+    self.pauseStartTime = data.pauseStartTime
     self.questions = data.questions
     self.currentQuestionIndex = data.currentQuestionIndex
     self.answers = data.answers
