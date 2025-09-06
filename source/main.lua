@@ -1194,6 +1194,19 @@ local function updateMenuItems()
             updateMenuItems()
         end)
     end
+
+    -- Add sound toggle menu item (available in all modes)
+    local soundLabel = gameState.soundEnabled and "Sound: On" or "Sound: Off"
+    menu:addMenuItem(soundLabel, function()
+        -- Toggle sound setting
+        gameState.soundEnabled = not gameState.soundEnabled
+        -- Save the setting immediately so it persists
+        gameState:saveSettings()
+        -- Play a confirmation sound if we just enabled sound
+        if gameState.soundEnabled then sounds.buttonPress:play() end
+        -- Update menu to reflect new state
+        updateMenuItems()
+    end)
 end
 
 -- Initialize game
