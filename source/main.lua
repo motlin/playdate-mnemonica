@@ -95,6 +95,7 @@ local uspccOrder = {
 -- UI state (not managed by GameState)
 local selectedCard = 1 -- Index in uspccOrder (1-52) for crank selection
 local showingCorrectAnswer = false
+local menuSelection = 1 -- Currently selected menu item (1-3)
 
 -- Crank handling
 local lastCrankValue = 0
@@ -199,6 +200,35 @@ local function resetGame()
     showingCorrectAnswer = false
     crankAccumulator = 0
     lastCrankValue = pd.getCrankPosition()
+end
+
+local function startSelectedMode()
+    local modes = {
+        GameState.MODES.QUIZ_NUMBER_TO_CARD,
+        GameState.MODES.QUIZ_CARD_TO_NUMBER,
+        GameState.MODES.STUDY
+    }
+
+    local selectedMode = modes[menuSelection]
+
+    -- Only Number→Card mode is currently implemented
+    if selectedMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        gameState:startQuiz(selectedMode)
+        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+        selectedCard = 1
+        showingCorrectAnswer = false
+        crankAccumulator = 0
+        lastCrankValue = pd.getCrankPosition()
+    else
+        -- These modes will be implemented later
+        -- For now, just start the implemented mode
+        gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
+        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+        selectedCard = 1
+        showingCorrectAnswer = false
+        crankAccumulator = 0
+        lastCrankValue = pd.getCrankPosition()
+    end
 end
 
 local function drawQuiz()
@@ -314,6 +344,44 @@ local function drawComplete()
     gfx.setFont()
 
     gfx.drawTextAligned("(A) Play Again", 200, 190, kTextAlignment.center)
+    gfx.drawTextAligned("(B) Main Menu", 200, 205, kTextAlignment.center)
+end
+
+local function drawMenu()
+    gfx.clear()
+
+    -- Draw title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Mnemonica Stack", 200, 30, kTextAlignment.center)
+    gfx.drawTextAligned("Memorizer", 200, 50, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Menu options
+    local menuItems = {
+        "Number → Card Quiz",
+        "Card → Number Quiz",
+        "Study Mode"
+    }
+
+    -- Draw menu items with selection indicator
+    for i, item in ipairs(menuItems) do
+        local y = 100 + (i - 1) * 30
+
+        if i == menuSelection then
+            -- Draw selection box
+            gfx.setColor(gfx.kColorBlack)
+            gfx.fillRoundRect(60, y - 5, 280, 25, 4)
+            gfx.setColor(gfx.kColorWhite)
+            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
+            gfx.setColor(gfx.kColorBlack)
+        else
+            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
+        end
+    end
+
+    -- Draw instructions
+    gfx.drawTextAligned("Use D-pad to select", 200, 200, kTextAlignment.center)
+    gfx.drawTextAligned("(A) Start selected mode", 200, 215, kTextAlignment.center)
 end
 
 function playdate.update()
@@ -325,7 +393,24 @@ function playdate.update()
         return
     end
 
-    if gameState.quizState == GameState.QUIZ_STATES.QUESTION then
+    if gameState.currentMode == GameState.MODES.MENU then
+        drawMenu()
+
+        -- Handle menu navigation
+        if pd.buttonJustPressed(pd.kButtonUp) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            menuSelection = menuSelection - 1
+            if menuSelection < 1 then menuSelection = 3 end
+        elseif pd.buttonJustPressed(pd.kButtonDown) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            menuSelection = menuSelection + 1
+            if menuSelection > 3 then menuSelection = 1 end
+        elseif pd.buttonJustPressed(pd.kButtonA) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            startSelectedMode()
+        end
+
+    elseif gameState.quizState == GameState.QUIZ_STATES.QUESTION then
         updateSelectedCard()
         drawQuiz()
 
@@ -351,6 +436,10 @@ function playdate.update()
         if pd.buttonJustPressed(pd.kButtonA) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             resetGame()
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            -- Return to main menu
+            gameState.currentMode = GameState.MODES.MENU
         end
     end
 end
@@ -361,28 +450,35 @@ local menu = pd.getSystemMenu()
 local function updateMenuItems()
     menu:removeAllMenuItems()
 
-    if gameState.isPaused then
-        menu:addMenuItem("Resume", function()
-            gameState:resume()
+    -- Don't show pause/resume in menu mode
+    if gameState.currentMode ~= GameState.MODES.MENU then
+        if gameState.isPaused then
+            menu:addMenuItem("Resume", function()
+                gameState:resume()
+                updateMenuItems()
+            end)
+        else
+            menu:addMenuItem("Pause", function()
+                gameState:pause()
+                updateMenuItems()
+            end)
+        end
+
+        menu:addMenuItem("Restart Quiz", function()
+            resetGame()
             updateMenuItems()
         end)
-    else
-        menu:addMenuItem("Pause", function()
-            gameState:pause()
+
+        menu:addMenuItem("Main Menu", function()
+            gameState.currentMode = GameState.MODES.MENU
             updateMenuItems()
         end)
     end
-
-    menu:addMenuItem("Restart Quiz", function()
-        resetGame()
-        updateMenuItems()
-    end)
 end
 
 -- Initialize game
 math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
 gameState:loadHighScores()  -- Load saved high scores from persistent storage
-gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)  -- Start first quiz
-gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]  -- Set first answer
+gameState.currentMode = GameState.MODES.MENU  -- Start at main menu
 lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
 updateMenuItems()  -- Set up menu
