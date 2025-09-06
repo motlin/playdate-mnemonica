@@ -1217,6 +1217,14 @@ local function updateMenuItems()
         -- Update menu to reflect new state
         updateMenuItems()
     end)
+
+    -- Add reset statistics menu item (available in all modes)
+    menu:addMenuItem("Reset Statistics", function()
+        if gameState.soundEnabled then sounds.buttonPress:play() end
+        gameState:resetCardStats()
+        -- Update menu to ensure it stays consistent
+        updateMenuItems()
+    end)
 end
 
 -- Initialize game
