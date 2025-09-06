@@ -98,8 +98,9 @@ local showingCorrectAnswer = false
 local menuSelection = 1 -- Currently selected menu item (1-3)
 
 -- Crank handling
-local lastCrankValue = 0
-local crankAccumulator = 0
+local lastCrankPosition = 0
+local degreesPerCard = 360 / 52  -- Each card gets approximately 6.92 degrees
+local crankVelocity = 0  -- Track crank movement speed for smooth feel
 
 
 -- Helper function to get card image from card name
@@ -128,32 +129,50 @@ local function drawCard(cardName, x, y, scale)
 end
 
 local function updateSelectedCard()
-    local crankValue = pd.getCrankPosition()
-    local crankDelta = crankValue - lastCrankValue
+    local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
 
-    -- Handle wrap-around at 0/360 degrees
-    if crankDelta > 180 then
-        crankDelta = crankDelta - 360
-    elseif crankDelta < -180 then
-        crankDelta = crankDelta + 360
+    -- Calculate crank velocity for smooth feel
+    local delta = crankPosition - lastCrankPosition
+    -- Handle wrap-around at 0/360 boundary
+    if delta > 180 then
+        delta = delta - 360
+    elseif delta < -180 then
+        delta = delta + 360
+    end
+    crankVelocity = delta
+
+    -- Map crank position to a floating point card position
+    local floatCard = (crankPosition / degreesPerCard) + 1
+
+    -- Add subtle snap behavior when crank is moving slowly
+    local snapThreshold = 0.35  -- How close to snap to the nearest card
+    local velocityThreshold = 3  -- Degrees per frame to consider "slow"
+
+    if math.abs(crankVelocity) < velocityThreshold then
+        -- When moving slowly, snap to nearest card position
+        local nearestCard = math.floor(floatCard + 0.5)
+        local distanceToNearest = math.abs(floatCard - nearestCard)
+
+        if distanceToNearest < snapThreshold then
+            floatCard = nearestCard
+        end
     end
 
-    crankAccumulator = crankAccumulator + crankDelta
-    lastCrankValue = crankValue
+    -- Convert to integer card position
+    local newCard = math.floor(floatCard)
 
-    -- One full rotation (360 degrees) = 13 cards (1/4 of the deck)
-    local cardChange = math.floor(crankAccumulator / (360 / 13))
-    if cardChange ~= 0 then
-        selectedCard = selectedCard + cardChange
-        crankAccumulator = crankAccumulator - (cardChange * (360 / 13))
+    -- Handle edge case at position 360 degrees (wraps to card 1)
+    if newCard > 52 then newCard = 1 end
+    if newCard < 1 then newCard = 1 end
 
-        -- Wrap around
-        while selectedCard < 1 do selectedCard = selectedCard + 52 end
-        while selectedCard > 52 do selectedCard = selectedCard - 52 end
-
-        -- Play crank tick sound
+    -- Check if card changed to play sound effect
+    if newCard ~= selectedCard then
+        selectedCard = newCard
+        -- Play crank tick sound when card changes
         if gameState.soundEnabled then sounds.crankTick:play() end
     end
+
+    lastCrankPosition = crankPosition
 end
 
 local function checkAnswer()
@@ -198,8 +217,7 @@ local function resetGame()
     gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
     selectedCard = 1
     showingCorrectAnswer = false
-    crankAccumulator = 0
-    lastCrankValue = pd.getCrankPosition()
+    lastCrankPosition = pd.getCrankPosition()
 end
 
 local function startSelectedMode()
@@ -221,8 +239,7 @@ local function startSelectedMode()
         gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
         selectedCard = 1
         showingCorrectAnswer = false
-        crankAccumulator = 0
-        lastCrankValue = pd.getCrankPosition()
+        lastCrankPosition = pd.getCrankPosition()
     else
         -- These modes will be implemented later
         -- For now, just start the implemented mode
@@ -230,8 +247,7 @@ local function startSelectedMode()
         gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
         selectedCard = 1
         showingCorrectAnswer = false
-        crankAccumulator = 0
-        lastCrankValue = pd.getCrankPosition()
+        lastCrankPosition = pd.getCrankPosition()
     end
 end
 
@@ -259,6 +275,11 @@ local function drawQuiz()
     -- Draw progress
     local progressText = gameState:getProgressString()
     gfx.drawTextAligned(progressText, 200, 150, kTextAlignment.center)
+
+    -- Draw crank position debug info (helpful for testing the mapping)
+    local crankAngle = pd.getCrankPosition()
+    local debugText = string.format("Crank: %d° → Card %d/52", math.floor(crankAngle), selectedCard)
+    gfx.drawTextAligned(debugText, 200, 170, kTextAlignment.center)
 
     -- Draw instructions
     gfx.drawTextAligned("Use crank to select card", 200, 185, kTextAlignment.center)
@@ -486,5 +507,5 @@ gameState:loadHighScores()  -- Load saved high scores from persistent storage
 gameState:loadSettings()  -- Load settings including last selected menu mode
 menuSelection = gameState.lastSelectedMenuMode  -- Restore last selected menu item
 gameState.currentMode = GameState.MODES.MENU  -- Start at main menu
-lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
+lastCrankPosition = pd.getCrankPosition()  -- Initialize crank position
 updateMenuItems()  -- Set up menu
