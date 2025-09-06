@@ -4,26 +4,45 @@ import "CoreLibs/ui"
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
--- Load card sprites
-local cardImageTable = gfx.imagetable.new("images/cards")
-assert(cardImageTable, "Failed to load card images")
+-- Load card sprites as a single image and create imagetable manually
+local cardSpriteSheet = gfx.image.new("images/cards")
+assert(cardSpriteSheet, "Failed to load card sprite sheet")
+
+-- Create imagetable from sprite sheet (32x32 pixels per card, 14 columns, 4 rows)
+local cardImageTable = gfx.imagetable.new(14, 4)
+local cardWidth, cardHeight = 32, 32
+
+-- Extract individual card images from the sprite sheet
+for row = 1, 4 do
+    for col = 1, 14 do
+        local x = (col - 1) * cardWidth
+        local y = (row - 1) * cardHeight
+        local cardImage = gfx.image.new(cardWidth, cardHeight)
+        gfx.pushContext(cardImage)
+        cardSpriteSheet:draw(-x, -y)
+        gfx.popContext()
+        local index = (row - 1) * 14 + col
+        cardImageTable:setImage(index, cardImage)
+    end
+end
 
 -- Card lookup mapping (card name to sprite index)
 -- The sprite sheet has 4 rows x 14 columns
--- Row 1: A-K of Spades (indices 1-13)
--- Row 2: A-K of Diamonds (indices 15-27)
--- Row 3: A-K of Clubs (indices 29-41)
--- Row 4: A-K of Hearts (indices 43-55)
+-- Row 1: A-K of Spades (indices 1-13) + back
+-- Row 2: A-K of Diamonds (indices 15-27) + back
+-- Row 3: A-K of Clubs (indices 29-41) + back
+-- Row 4: A-K of Hearts (indices 43-55) + back
 local cardToIndex = {}
 local suits = {"S", "D", "C", "H"}
-local suitOffsets = {0, 14, 28, 42}  -- Starting indices for each suit
 local ranks = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"}
 
 -- Build card name to sprite index mapping
 for suitIdx, suit in ipairs(suits) do
     for rankIdx, rank in ipairs(ranks) do
         local cardName = rank .. suit
-        cardToIndex[cardName] = suitOffsets[suitIdx] + rankIdx
+        -- Each row has 14 slots but only 13 cards (14th is card back)
+        local index = (suitIdx - 1) * 14 + rankIdx
+        cardToIndex[cardName] = index
     end
 end
 
