@@ -152,7 +152,9 @@ local uspccOrder = {
 local selectedCard = 1 -- Index in uspccOrder (1-52) for crank selection
 local selectedNumber = 1 -- Selected position number (1-52) for Card→Number quiz
 local showingCorrectAnswer = false
-local menuSelection = 1 -- Currently selected menu item (1-3)
+local menuSelection = 1 -- Currently selected menu item (1-4)
+local settingsSelection = 1 -- Currently selected settings item
+local showingCredits = false -- Track if we're showing the credits screen
 local studyModePosition = 1 -- Current position in study mode (1-52)
 
 -- Crank handling
@@ -208,8 +210,11 @@ local function updateSelectedCard()
     end
     crankVelocity = delta
 
+    -- Apply crank sensitivity to effective degrees per card
+    local effectiveDegreesPerCard = degreesPerCard / gameState.crankSensitivity
+
     -- Map crank position to a floating point card position
-    local floatCard = (crankPosition / degreesPerCard) + 1
+    local floatCard = (crankPosition / effectiveDegreesPerCard) + 1
 
     -- Add subtle snap behavior when crank is moving slowly
     local snapThreshold = 0.35  -- How close to snap to the nearest card
@@ -262,8 +267,11 @@ local function updateSelectedNumber()
     end
     crankVelocity = delta
 
+    -- Apply crank sensitivity to effective degrees per number
+    local effectiveDegreesPerNumber = degreesPerNumber / gameState.crankSensitivity
+
     -- Map crank position to a floating point number position
-    local floatNumber = (crankPosition / degreesPerNumber) + 1
+    local floatNumber = (crankPosition / effectiveDegreesPerNumber) + 1
 
     -- Add subtle snap behavior when crank is moving slowly
     local snapThreshold = 0.35  -- How close to snap to the nearest number
@@ -395,7 +403,8 @@ local function startSelectedMode()
     local modes = {
         GameState.MODES.QUIZ_NUMBER_TO_CARD,
         GameState.MODES.QUIZ_CARD_TO_NUMBER,
-        GameState.MODES.STUDY
+        GameState.MODES.STUDY,
+        GameState.MODES.SETTINGS
     }
 
     local selectedMode = modes[menuSelection]
@@ -417,11 +426,16 @@ local function startSelectedMode()
         selectedNumber = 1
         showingCorrectAnswer = false
         lastCrankPosition = pd.getCrankPosition()
-    else
+    elseif selectedMode == GameState.MODES.STUDY then
         -- Study mode
         gameState.currentMode = GameState.MODES.STUDY
         studyModePosition = 1
         lastCrankPosition = pd.getCrankPosition()
+    else
+        -- Settings mode
+        gameState.currentMode = GameState.MODES.SETTINGS
+        settingsSelection = 1
+        showingCredits = false
     end
 end
 
@@ -788,8 +802,11 @@ local function updateStudyModePosition()
     end
     crankVelocity = delta
 
+    -- Apply crank sensitivity to effective degrees per position
+    local effectiveDegreesPerPosition = degreesPerPosition / gameState.crankSensitivity
+
     -- Map crank position to a floating point position
-    local floatPosition = (crankPosition / degreesPerPosition) + 1
+    local floatPosition = (crankPosition / effectiveDegreesPerPosition) + 1
 
     -- Add subtle snap behavior when crank is moving slowly
     local snapThreshold = 0.35  -- How close to snap to the nearest position
@@ -966,6 +983,70 @@ local function drawMistakeReviewStudy()
     gfx.drawTextAligned("B: Previous • A: Next", 200, 220, kTextAlignment.center)
 end
 
+local function drawSettings()
+    gfx.clear()
+
+    -- Draw title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Settings", 200, 20, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Settings options
+    local settingsItems = {
+        "Sound: " .. (gameState.soundEnabled and "On" or "Off"),
+        "Crank Sensitivity: " .. string.format("%.1f", gameState.crankSensitivity),
+        "Reset Statistics",
+        "Reset High Scores",
+        "Credits",
+        "Back to Menu"
+    }
+
+    -- Draw settings items with selection indicator
+    for i, item in ipairs(settingsItems) do
+        local y = 60 + (i - 1) * 25
+
+        if i == settingsSelection then
+            -- Draw selection box
+            gfx.setColor(gfx.kColorBlack)
+            gfx.fillRoundRect(50, y - 3, 300, 21, 3)
+            gfx.setColor(gfx.kColorWhite)
+            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
+            gfx.setColor(gfx.kColorBlack)
+        else
+            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
+        end
+    end
+
+    -- Draw instructions
+    gfx.drawTextAligned("↑↓: Select • A: Confirm", 200, 205, kTextAlignment.center)
+    gfx.drawTextAligned("←→: Adjust values • B: Back", 200, 220, kTextAlignment.center)
+end
+
+local function drawCredits()
+    gfx.clear()
+
+    -- Draw title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Credits", 200, 20, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Credits content
+    gfx.drawTextAligned("Mnemonica Stack Memorizer", 200, 50, kTextAlignment.center)
+    gfx.drawTextAligned("for Playdate", 200, 70, kTextAlignment.center)
+
+    gfx.drawTextAligned("── Created by ──", 200, 100, kTextAlignment.center)
+    gfx.drawTextAligned("Mr. Poopybutthole", 200, 120, kTextAlignment.center)
+
+    gfx.drawTextAligned("── Playing Card Assets ──", 200, 150, kTextAlignment.center)
+    gfx.drawText("Free playing cards from:", 50, 170)
+    gfx.drawText("devforum.play.date/t/", 50, 185)
+    gfx.drawText("playing-card-deck-imagetable-", 50, 200)
+    gfx.drawText("free-for-your-card-game/994", 50, 215)
+
+    -- Instructions
+    gfx.drawTextAligned("Press B to return", 200, 235, kTextAlignment.center)
+end
+
 local function drawMenu()
     gfx.clear()
 
@@ -1012,7 +1093,8 @@ local function drawMenu()
     local menuItems = {
         "Number → Card Quiz",
         "Card → Number Quiz",
-        "Study Mode"
+        "Study Mode",
+        "Settings"
     }
 
     -- Draw menu items with selection indicator (adjusted y positions to account for high scores)
@@ -1143,11 +1225,11 @@ function playdate.update()
         if pd.buttonJustPressed(pd.kButtonUp) then
             if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection - 1
-            if menuSelection < 1 then menuSelection = 3 end
+            if menuSelection < 1 then menuSelection = 4 end
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection + 1
-            if menuSelection > 3 then menuSelection = 1 end
+            if menuSelection > 4 then menuSelection = 1 end
         elseif pd.buttonJustPressed(pd.kButtonA) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             startSelectedMode()
@@ -1181,6 +1263,71 @@ function playdate.update()
         if pd.buttonJustPressed(pd.kButtonB) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             gameState.currentMode = GameState.MODES.MENU
+        end
+
+    elseif gameState.currentMode == GameState.MODES.SETTINGS then
+        -- Settings mode
+        if showingCredits then
+            -- Credits screen
+            drawCredits()
+
+            if pd.buttonJustPressed(pd.kButtonB) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                showingCredits = false  -- Return to settings menu
+            end
+        else
+            -- Main settings screen
+            drawSettings()
+
+            -- Handle settings navigation
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                if gameState.soundEnabled then sounds.menuMove:play() end
+                settingsSelection = settingsSelection - 1
+                if settingsSelection < 1 then settingsSelection = 6 end
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                if gameState.soundEnabled then sounds.menuMove:play() end
+                settingsSelection = settingsSelection + 1
+                if settingsSelection > 6 then settingsSelection = 1 end
+            elseif pd.buttonJustPressed(pd.kButtonLeft) then
+                -- Adjust values left
+                if settingsSelection == 2 then
+                    -- Crank sensitivity
+                    gameState.crankSensitivity = math.max(0.1, gameState.crankSensitivity - 0.1)
+                    gameState:saveSettings()
+                    if gameState.soundEnabled then sounds.buttonPress:play() end
+                end
+            elseif pd.buttonJustPressed(pd.kButtonRight) then
+                -- Adjust values right
+                if settingsSelection == 2 then
+                    -- Crank sensitivity
+                    gameState.crankSensitivity = math.min(3.0, gameState.crankSensitivity + 0.1)
+                    gameState:saveSettings()
+                    if gameState.soundEnabled then sounds.buttonPress:play() end
+                end
+            elseif pd.buttonJustPressed(pd.kButtonA) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+
+                if settingsSelection == 1 then
+                    -- Toggle sound
+                    gameState.soundEnabled = not gameState.soundEnabled
+                    gameState:saveSettings()
+                elseif settingsSelection == 3 then
+                    -- Reset statistics
+                    gameState:resetCardStats()
+                elseif settingsSelection == 4 then
+                    -- Reset high scores
+                    gameState:resetHighScores()
+                elseif settingsSelection == 5 then
+                    -- Show credits
+                    showingCredits = true
+                elseif settingsSelection == 6 then
+                    -- Back to menu
+                    gameState.currentMode = GameState.MODES.MENU
+                end
+            elseif pd.buttonJustPressed(pd.kButtonB) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                gameState.currentMode = GameState.MODES.MENU
+            end
         end
 
     elseif gameState.quizState == GameState.QUIZ_STATES.QUESTION then
@@ -1284,8 +1431,10 @@ local menu = pd.getSystemMenu()
 local function updateMenuItems()
     menu:removeAllMenuItems()
 
-    -- Don't show pause/resume in menu mode or study mode
-    if gameState.currentMode ~= GameState.MODES.MENU and gameState.currentMode ~= GameState.MODES.STUDY then
+    -- Don't show pause/resume in menu mode, study mode, or settings mode
+    if gameState.currentMode ~= GameState.MODES.MENU and
+       gameState.currentMode ~= GameState.MODES.STUDY and
+       gameState.currentMode ~= GameState.MODES.SETTINGS then
         if gameState.isPaused then
             menu:addMenuItem("Resume", function()
                 if gameState.soundEnabled then sounds.buttonPress:play() end
