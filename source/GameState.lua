@@ -35,6 +35,7 @@ function GameState:new()
 
     -- Current quiz session
     state.currentSession = nil  -- Will be initialized when quiz starts
+    state.originalSession = nil  -- Preserve original session during mistake review
 
     -- Mistake review mode
     state.mistakeReviewMode = nil  -- Will be initialized when starting mistake review
@@ -674,6 +675,9 @@ function GameState:startMistakeReview()
         local mistakes = self.currentSession.mistakes
         local originalMode = self.currentSession.mode
 
+        -- Preserve the original session so we can return to its summary
+        self.originalSession = self.currentSession
+
         -- Create the mistake review mode
         self.mistakeReviewMode = MistakeReviewMode:new(mistakes, originalMode)
 
@@ -705,7 +709,7 @@ function GameState:transitionToMistakeQuiz()
         -- Start the quiz phase
         local quizSession = self.mistakeReviewMode:startQuizPhase()
         if quizSession then
-            -- Replace current session with the review quiz session
+            -- Set the review quiz session as current (original is preserved)
             self.currentSession = quizSession
             self.quizState = GameState.QUIZ_STATES.QUESTION
 
