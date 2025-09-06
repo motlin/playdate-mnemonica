@@ -105,7 +105,8 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Calculate opacity/visibility based on position
     -- Cards at the back (bottom) should be dimmer
-    local opacity = 0.3 + (depthFactor * 0.7)  -- Range from 0.3 to 1.0
+    -- Increased minimum opacity for better contrast on 1-bit display
+    local opacity = 0.5 + (depthFactor * 0.5)  -- Range from 0.5 to 1.0
 
     -- Determine if card should be visible (limit number of visible cards)
     local distanceFromSelected = math.abs(cardIndex - selectedCard)
@@ -164,10 +165,11 @@ function DialRenderer:draw(uspccOrder, selectedCard, getCardImage, drawCardFunct
         local cardName = cardData.cardName
 
         -- Apply dithering pattern for cards that aren't at the front
-        if transform.opacity < 0.9 then
-            -- Use Playdate's built-in dither patterns for depth effect
-            local ditherLevel = math.floor((1 - transform.opacity) * 8)
-            gfx.setDitherPattern(ditherLevel / 8, gfx.image.kDitherTypeBayer8x8)
+        -- Only apply light dithering to maintain contrast
+        if transform.opacity < 0.8 then
+            -- Use lighter dither patterns for better visibility
+            local ditherLevel = math.floor((1 - transform.opacity) * 4)  -- Reduced from 8 to 4
+            gfx.setDitherPattern(ditherLevel / 8, gfx.image.kDitherTypeBayer4x4)
         end
 
         -- Draw the card
@@ -183,7 +185,7 @@ function DialRenderer:draw(uspccOrder, selectedCard, getCardImage, drawCardFunct
         end
 
         -- Reset dither pattern
-        if transform.opacity < 0.9 then
+        if transform.opacity < 0.8 then
             gfx.setDitherPattern(0)
         end
     end
@@ -204,6 +206,9 @@ function DialRenderer:drawSelectionIndicator(selectedCard, totalCards)
     local bracketWidth = 60
     local bracketHeight = 80
     local bracketOffset = 10
+
+    -- Use thicker lines for better visibility
+    gfx.setLineWidth(2)
 
     -- Left bracket
     gfx.drawLine(
@@ -244,6 +249,9 @@ function DialRenderer:drawSelectionIndicator(selectedCard, totalCards)
         transform.x + bracketWidth/2 + bracketOffset - 10,
         transform.y + bracketHeight/2
     )
+
+    -- Reset line width
+    gfx.setLineWidth(1)
 end
 
 -- Draw position indicator showing which card is selected
@@ -274,17 +282,15 @@ end
 
 -- Draw dial frame/background
 function DialRenderer:drawFrame()
-    -- Draw subtle circular guide
+    -- Draw solid circular guide for better contrast
     gfx.setLineWidth(1)
-    gfx.setPattern({0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55})
+    -- Use solid line instead of dithered pattern for better visibility
     gfx.drawEllipseAtPoint(
         self.centerX,
         self.centerY,
         self.radius + 20,
         (self.radius + 20) * 0.6
     )
-    gfx.setPattern({})
-    gfx.setLineWidth(1)
 end
 
 return DialRenderer
