@@ -2,8 +2,7 @@
 -- Handles all game state tracking including mode, score, timer, progress, etc.
 
 local pd <const> = playdate
-import "QuizSession"
-local QuizSession = QuizSession
+local QuizSession = import "QuizSession"
 
 local GameState = {}
 GameState.__index = GameState
