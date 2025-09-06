@@ -10,28 +10,30 @@ assert(cardSpriteSheet, "Failed to load card sprite sheet")
 
 -- Store individual card images in a table
 local cardImages = {}
-local cardWidth, cardHeight = 32, 32
+local cardWidth, cardHeight = 50, 70
 
 -- Extract individual card images from the sprite sheet
-for row = 1, 4 do
-    for col = 1, 14 do
+-- The sheet has 13 cards per row, 5 rows total
+for row = 1, 5 do
+    for col = 1, 13 do
         local x = (col - 1) * cardWidth
         local y = (row - 1) * cardHeight
         local cardImage = gfx.image.new(cardWidth, cardHeight)
         gfx.pushContext(cardImage)
         cardSpriteSheet:draw(-x, -y)
         gfx.popContext()
-        local index = (row - 1) * 14 + col
+        local index = (row - 1) * 13 + col
         cardImages[index] = cardImage
     end
 end
 
 -- Card lookup mapping (card name to sprite index)
--- The sprite sheet has 4 rows x 14 columns
--- Row 1: A-K of Spades (indices 1-13) + back
--- Row 2: A-K of Diamonds (indices 15-27) + back
--- Row 3: A-K of Clubs (indices 29-41) + back
--- Row 4: A-K of Hearts (indices 43-55) + back
+-- The sprite sheet has 5 rows x 13 columns
+-- Row 1: A-K of Spades (indices 1-13)
+-- Row 2: A-K of Diamonds (indices 14-26)
+-- Row 3: A-K of Clubs (indices 27-39)
+-- Row 4: A-K of Hearts (indices 40-52)
+-- Row 5: Card backs (indices 53-65)
 local cardToIndex = {}
 local suits = {"S", "D", "C", "H"}
 local ranks = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"}
@@ -40,8 +42,8 @@ local ranks = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"}
 for suitIdx, suit in ipairs(suits) do
     for rankIdx, rank in ipairs(ranks) do
         local cardName = rank .. suit
-        -- Each row has 14 slots but only 13 cards (14th is card back)
-        local index = (suitIdx - 1) * 14 + rankIdx
+        -- Each row has 13 cards
+        local index = (suitIdx - 1) * 13 + rankIdx
         cardToIndex[cardName] = index
     end
 end
