@@ -9,6 +9,7 @@ default:
 
 # 🔨 Build the Playdate project
 build:
+    mkdir -p "{{output_dir}}"
     pdc "{{source_dir}}" "{{pdx_file}}"
 
 # 🎮 Run the Playdate Simulator
