@@ -51,19 +51,8 @@ function GameState:new()
     -- Pause state
     state.isPaused = false
 
-    -- Legacy fields for compatibility (will be migrated to session)
-    state.score = 0
-    state.totalQuestions = 52
-    state.questionOrder = {}
-    state.questionIndex = 1
-    state.currentPosition = 1
-    state.mistakes = {}
-    state.questionsAnswered = 0
-    state.questionsCorrect = 0
-    state.questionsIncorrect = 0
-    state.questionsPassed = 0
-    state.startTime = 0
-    state.elapsedTime = 0
+    -- Legacy fields for compatibility (lazily populated from session when needed)
+    state._legacyFieldsCache = nil  -- Cache for legacy field access
 
     -- High scores
     state.highScores = {
@@ -95,6 +84,50 @@ function GameState:new()
 
     -- Load saved settings including last selected menu mode
     state:loadSettings()
+
+    -- Add metamethod for lazy loading of legacy fields
+    local mt = getmetatable(state) or {}
+    mt.__index = function(self, key)
+        -- Legacy field access - get from session if available
+        if key == "score" then
+            return self.currentSession and self.currentSession.statistics.score or 0
+        elseif key == "questionsAnswered" then
+            return self.currentSession and self.currentSession.statistics.questionsAnswered or 0
+        elseif key == "questionsCorrect" then
+            return self.currentSession and self.currentSession.statistics.questionsCorrect or 0
+        elseif key == "questionsIncorrect" then
+            return self.currentSession and self.currentSession.statistics.questionsIncorrect or 0
+        elseif key == "questionsPassed" then
+            return self.currentSession and self.currentSession.statistics.questionsPassed or 0
+        elseif key == "mistakes" then
+            return self.currentSession and self.currentSession.mistakes or {}
+        elseif key == "currentPosition" then
+            if self.currentSession then
+                local question = self.currentSession:getCurrentQuestion()
+                return question and question.position or 1
+            end
+            return 1
+        elseif key == "questionIndex" then
+            return self.currentSession and self.currentSession.currentQuestionIndex or 1
+        elseif key == "elapsedTime" then
+            return self.currentSession and self.currentSession:getElapsedTime() or 0
+        elseif key == "startTime" then
+            return self.currentSession and self.currentSession.startTime or 0
+        elseif key == "questionOrder" then
+            if self.currentSession then
+                local order = {}
+                for i, q in ipairs(self.currentSession.questions) do
+                    order[i] = q.position
+                end
+                return order
+            end
+            return {}
+        else
+            -- Use original __index behavior
+            return rawget(GameState, key)
+        end
+    end
+    setmetatable(state, mt)
 
     return state
 end
@@ -144,36 +177,10 @@ function GameState:startQuiz(mode, useSpacedRepetition)
     self.isPaused = false
 end
 
--- Sync legacy fields with current session for backward compatibility
+-- Legacy compatibility function (now a no-op due to lazy loading)
 function GameState:syncLegacyFields()
-    if self.currentSession then
-        local question = self.currentSession:getCurrentQuestion()
-        if question then
-            self.currentPosition = question.position
-            self.questionIndex = self.currentSession.currentQuestionIndex
-        end
-
-        -- Sync statistics
-        local stats = self.currentSession.statistics
-        self.score = stats.score
-        self.questionsAnswered = stats.questionsAnswered
-        self.questionsCorrect = stats.questionsCorrect
-        self.questionsIncorrect = stats.questionsIncorrect
-        self.questionsPassed = stats.questionsPassed
-
-        -- Sync mistakes
-        self.mistakes = self.currentSession.mistakes
-
-        -- Sync time
-        self.startTime = self.currentSession.startTime
-        self.elapsedTime = self.currentSession:getElapsedTime()
-
-        -- Sync question order (create from session questions)
-        self.questionOrder = {}
-        for i, q in ipairs(self.currentSession.questions) do
-            self.questionOrder[i] = q.position
-        end
-    end
+    -- Fields are now lazily loaded via __index metamethod
+    -- This function is kept for compatibility but does nothing
 end
 
 -- Initialize shuffled question order using Fisher-Yates algorithm
@@ -543,20 +550,8 @@ function GameState:saveState()
     -- Save session data if exists
     if self.currentSession then
         stateData.sessionData = self.currentSession:export()
-    else
-        -- Save legacy fields for backward compatibility
-        stateData.score = self.score
-        stateData.startTime = self.startTime
-        stateData.elapsedTime = self.elapsedTime
-        stateData.questionOrder = self.questionOrder
-        stateData.questionIndex = self.questionIndex
-        stateData.currentPosition = self.currentPosition
-        stateData.mistakes = self.mistakes
-        stateData.questionsAnswered = self.questionsAnswered
-        stateData.questionsCorrect = self.questionsCorrect
-        stateData.questionsIncorrect = self.questionsIncorrect
-        stateData.questionsPassed = self.questionsPassed
     end
+    -- Note: Legacy fields are now lazily loaded, no need to save them separately
 
     pd.datastore.write(stateData, "gamestate")
 end
@@ -581,21 +576,8 @@ function GameState:loadState()
         if stateData.sessionData then
             self.currentSession = QuizSession:new(self.currentMode, 52)
             self.currentSession:import(stateData.sessionData)
-            self:syncLegacyFields()
-        else
-            -- Restore legacy fields
-            self.score = stateData.score or 0
-            self.startTime = stateData.startTime or 0
-            self.elapsedTime = stateData.elapsedTime or 0
-            self.questionOrder = stateData.questionOrder or {}
-            self.questionIndex = stateData.questionIndex or 1
-            self.currentPosition = stateData.currentPosition or 1
-            self.mistakes = stateData.mistakes or {}
-            self.questionsAnswered = stateData.questionsAnswered or 0
-            self.questionsCorrect = stateData.questionsCorrect or 0
-            self.questionsIncorrect = stateData.questionsIncorrect or 0
-            self.questionsPassed = stateData.questionsPassed or 0
         end
+        -- Legacy fields are handled by __index metamethod
         return true
     end
     return false

@@ -43,7 +43,9 @@ local cardImages = {}
 local cardWidth, cardHeight = 50, 70
 
 -- Cache for scaled card images to avoid expensive scaling operations
+-- Limited cache size to prevent memory bloat
 local scaledCardCache = {}
+local maxCacheSize = 20  -- Limit cached scaled images to prevent memory issues
 
 -- Extract individual card images from the sprite sheet
 -- The sheet has 13 cards per row, 5 rows total
@@ -57,25 +59,42 @@ for row = 1, 5 do
         gfx.popContext()
         local index = (row - 1) * 13 + col
         cardImages[index] = cardImage
-        scaledCardCache[index] = {}
     end
 end
 
--- Function to get a cached scaled card image
+-- Function to get a cached scaled card image with LRU eviction
 local function getCachedScaledCard(cardIndex, scale)
     if not cardIndex or not cardImages[cardIndex] then
         return nil
     end
 
-    -- Round scale to nearest 0.1 to limit cache size
-    local roundedScale = math.floor(scale * 10 + 0.5) / 10
+    -- Round scale to nearest 0.2 to further limit cache size
+    local roundedScale = math.floor(scale * 5 + 0.5) / 5
+    local cacheKey = cardIndex .. "_" .. roundedScale
 
-    local cache = scaledCardCache[cardIndex]
-    if not cache[roundedScale] then
-        cache[roundedScale] = cardImages[cardIndex]:scaledImage(roundedScale)
+    -- Check if already cached
+    if scaledCardCache[cacheKey] then
+        return scaledCardCache[cacheKey]
     end
 
-    return cache[roundedScale]
+    -- Check cache size limit
+    local cacheCount = 0
+    for _ in pairs(scaledCardCache) do
+        cacheCount = cacheCount + 1
+    end
+
+    -- If cache is full, remove oldest entry (simple eviction)
+    if cacheCount >= maxCacheSize then
+        -- Remove first entry found (not true LRU, but simple)
+        for key, _ in pairs(scaledCardCache) do
+            scaledCardCache[key] = nil
+            break
+        end
+    end
+
+    -- Create and cache new scaled image
+    scaledCardCache[cacheKey] = cardImages[cardIndex]:scaledImage(roundedScale)
+    return scaledCardCache[cacheKey]
 end
 
 -- Card lookup mapping (card name to sprite index)
