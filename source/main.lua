@@ -181,9 +181,9 @@ local function drawQuiz()
     local questionText = "Position " .. currentPosition .. "?"
     gfx.drawTextAligned(questionText, 200, 10, kTextAlignment.center)
 
-    -- Draw selected card (reduced scale and better positioned)
+    -- Draw selected card at 1x scale (50x70 pixels)
     local selectedCardName = uspccOrder[selectedCard]
-    drawCard(selectedCardName, 200, 90, 1.5)  -- 1.5x scale, moved down
+    drawCard(selectedCardName, 200, 70, 1)  -- 1x scale, natural size
 
     -- Draw crank indicator if docked
     if pd.isCrankDocked() then
@@ -192,7 +192,7 @@ local function drawQuiz()
 
     -- Draw progress
     local progressText = "Question " .. currentPosition .. " of 52"
-    gfx.drawTextAligned(progressText, 200, 170, kTextAlignment.center)
+    gfx.drawTextAligned(progressText, 200, 150, kTextAlignment.center)
 
     -- Draw instructions
     gfx.drawTextAligned("Use crank to select card", 200, 195, kTextAlignment.center)
@@ -203,24 +203,24 @@ local function drawFeedback()
     gfx.clear()
 
     if userWasCorrect then
-        gfx.drawTextAligned("Correct!", 200, 30, kTextAlignment.center)
-        -- Show the correct card
-        drawCard(correctAnswer, 200, 90, 1.5)
+        gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
+        -- Show the correct card at 1x scale
+        drawCard(correctAnswer, 200, 70, 1)
     else
         gfx.drawTextAligned("Wrong!", 200, 10, kTextAlignment.center)
 
-        -- Show user's wrong answer on the left
-        gfx.drawTextAligned("You picked:", 100, 40, kTextAlignment.center)
-        drawCard(userAnswer, 100, 90, 1.2)
+        -- Show user's wrong answer on the left at 1x scale
+        gfx.drawTextAligned("You picked:", 100, 35, kTextAlignment.center)
+        drawCard(userAnswer, 100, 80, 1)
 
-        -- Show correct answer on the right
-        gfx.drawTextAligned("Correct:", 300, 40, kTextAlignment.center)
-        drawCard(correctAnswer, 300, 90, 1.2)
+        -- Show correct answer on the right at 1x scale
+        gfx.drawTextAligned("Correct:", 300, 35, kTextAlignment.center)
+        drawCard(correctAnswer, 300, 80, 1)
     end
 
     -- Draw score
     local scoreText = "Score: " .. score .. "/" .. (currentPosition)
-    gfx.drawTextAligned(scoreText, 200, 170, kTextAlignment.center)
+    gfx.drawTextAligned(scoreText, 200, 160, kTextAlignment.center)
 
     -- Draw continue instruction
     gfx.drawTextAligned("(A) Continue", 200, 200, kTextAlignment.center)
