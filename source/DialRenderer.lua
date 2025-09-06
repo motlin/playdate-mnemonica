@@ -28,7 +28,7 @@ function DialRenderer:new(cardImages, cardWidth, cardHeight)
     -- Animation state
     renderer.currentRotation = 0    -- Current rotation angle of the dial
     renderer.targetRotation = 0     -- Target rotation angle (for smooth animation)
-    renderer.rotationSpeed = 0.15   -- Smoothing factor for rotation animation
+    renderer.rotationSpeed = 0.2    -- Smoothing factor for rotation animation (optimized for responsive feel)
 
     return renderer
 end
