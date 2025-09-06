@@ -1,14 +1,18 @@
 import "CoreLibs/graphics"
 import "CoreLibs/ui"
 import "GameState"
+import "DialRenderer"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
 
 -- Initialize GameState manager
-import "GameState"
 local gameState = GameState:new()
+
+-- Initialize DialRenderer for rotating dial visualization
+local DialRenderer = DialRenderer
+local dialRenderer = nil  -- Will be initialized after card images are loaded
 
 -- Load card sprites as a single image
 local cardSpriteSheet = gfx.image.new("images/cards")
@@ -69,6 +73,9 @@ for suitIdx, suit in ipairs(suits) do
         cardToIndex[cardName] = index
     end
 end
+
+-- Initialize DialRenderer after card images are loaded
+dialRenderer = DialRenderer:new(cardImages, cardWidth, cardHeight)
 
 -- Mnemonica stack order (1-52) - using S/D/C/H for suits
 local mnemonicaStack = {
@@ -263,28 +270,27 @@ local function drawQuiz()
     local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
-    -- Draw selected card at 1x scale (50x70 pixels)
-    local selectedCardName = uspccOrder[selectedCard]
-    drawCard(selectedCardName, 200, 70, 1)  -- 1x scale, natural size
+    -- Draw the rotating dial with cards
+    if dialRenderer then
+        dialRenderer:drawFrame()  -- Draw dial background/frame
+        dialRenderer:draw(uspccOrder, selectedCard, getCardImage, drawCard)
+    else
+        -- Fallback to simple card display if dial renderer not available
+        local selectedCardName = uspccOrder[selectedCard]
+        drawCard(selectedCardName, 200, 70, 1)
+    end
 
     -- Draw crank indicator if docked
     if pd.isCrankDocked() then
         pd.ui.crankIndicator:draw()
     end
 
-    -- Draw progress
+    -- Draw progress at bottom
     local progressText = gameState:getProgressString()
-    gfx.drawTextAligned(progressText, 200, 150, kTextAlignment.center)
-
-    -- Draw crank position debug info (helpful for testing the mapping)
-    local crankAngle = pd.getCrankPosition()
-    local debugText = string.format("Crank: %d° → Card %d/52", math.floor(crankAngle), selectedCard)
-    gfx.drawTextAligned(debugText, 200, 170, kTextAlignment.center)
+    gfx.drawTextAligned(progressText, 200, 200, kTextAlignment.center)
 
     -- Draw instructions
-    gfx.drawTextAligned("Use crank to select card", 200, 185, kTextAlignment.center)
-    gfx.drawTextAligned("(A) Confirm answer", 200, 200, kTextAlignment.center)
-    gfx.drawTextAligned("(B) Pass/Skip question", 200, 215, kTextAlignment.center)
+    gfx.drawTextAligned("Crank: Select • A: Confirm • B: Pass", 200, 220, kTextAlignment.center)
 end
 
 local function drawFeedback()
