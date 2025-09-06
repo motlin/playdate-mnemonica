@@ -98,6 +98,10 @@ local userAnswer = ""  -- Store what the user selected
 local userWasCorrect = false
 local userPassed = false  -- Track if user passed on this question
 
+-- Timer state
+local startTime = 0
+local elapsedTime = 0
+
 -- Shuffled question order
 local questionOrder = {}  -- Array of positions 1-52 in random order
 local questionIndex = 1   -- Current index in questionOrder array
@@ -124,6 +128,13 @@ local function initializeQuestionOrder()
     shuffleArray(questionOrder)
     questionIndex = 1
     currentPosition = questionOrder[questionIndex]
+end
+
+-- Helper function to format time as MM:SS
+local function formatTime(seconds)
+    local minutes = math.floor(seconds / 60)
+    local secs = math.floor(seconds % 60)
+    return string.format("%d:%02d", minutes, secs)
 end
 
 -- Helper function to get card image from card name
@@ -219,6 +230,9 @@ local function nextQuestion()
     questionIndex = questionIndex + 1
 
     if questionIndex > 52 then
+        -- Capture final elapsed time when quiz completes
+        local currentTime = pd.getCurrentTimeMilliseconds() / 1000
+        elapsedTime = currentTime - startTime
         gameState = "complete"
         sounds.sessionComplete:play()
     else
@@ -236,6 +250,8 @@ local function resetGame()
     gameState = "quiz"
     crankAccumulator = 0
     lastCrankValue = pd.getCrankPosition()
+    startTime = pd.getCurrentTimeMilliseconds() / 1000  -- Reset timer
+    elapsedTime = 0
 end
 
 local function drawQuiz()
@@ -244,6 +260,12 @@ local function drawQuiz()
     -- Draw question at top
     local questionText = "Position " .. currentPosition .. "?"
     gfx.drawTextAligned(questionText, 200, 10, kTextAlignment.center)
+
+    -- Draw timer in top-right corner
+    local currentTime = pd.getCurrentTimeMilliseconds() / 1000
+    elapsedTime = currentTime - startTime
+    local timeText = formatTime(elapsedTime)
+    gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
     -- Draw selected card at 1x scale (50x70 pixels)
     local selectedCardName = uspccOrder[selectedCard]
@@ -266,6 +288,12 @@ end
 
 local function drawFeedback()
     gfx.clear()
+
+    -- Draw timer in top-right corner (keep it visible during feedback)
+    local currentTime = pd.getCurrentTimeMilliseconds() / 1000
+    elapsedTime = currentTime - startTime
+    local timeText = formatTime(elapsedTime)
+    gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
     if userWasCorrect then
         gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
@@ -300,15 +328,19 @@ end
 local function drawComplete()
     gfx.clear()
 
-    gfx.drawTextAligned("Quiz Complete!", 200, 60, kTextAlignment.center)
+    gfx.drawTextAligned("Quiz Complete!", 200, 50, kTextAlignment.center)
 
     local finalScore = "Final Score: " .. score .. "/52"
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(finalScore, 200, 100, kTextAlignment.center)
+    gfx.drawTextAligned(finalScore, 200, 85, kTextAlignment.center)
     gfx.setFont()
 
     local percentage = math.floor((score / 52) * 100)
-    gfx.drawTextAligned(percentage .. "% correct", 200, 130, kTextAlignment.center)
+    gfx.drawTextAligned(percentage .. "% correct", 200, 115, kTextAlignment.center)
+
+    -- Display final time
+    local finalTime = "Time: " .. formatTime(elapsedTime)
+    gfx.drawTextAligned(finalTime, 200, 140, kTextAlignment.center)
 
     gfx.drawTextAligned("(A) Play Again", 200, 180, kTextAlignment.center)
 end
@@ -348,3 +380,4 @@ end
 math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
 initializeQuestionOrder()  -- Initialize shuffled question order
 lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
+startTime = pd.getCurrentTimeMilliseconds() / 1000  -- Initialize timer
