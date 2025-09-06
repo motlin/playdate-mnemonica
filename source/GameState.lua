@@ -14,6 +14,7 @@ GameState.MODES = {
     QUIZ_CARD_TO_NUMBER = "quiz_card_to_number",
     STUDY = "study",
     MENU = "menu",
+    SETTINGS = "settings",
     MISTAKE_REVIEW = "mistake_review"  -- New mode for mistake review
 }
 
@@ -647,6 +648,15 @@ function GameState:resetCardStats()
         }
     end
     self:saveCardStats()
+end
+
+-- Reset all high scores
+function GameState:resetHighScores()
+    self.highScores = {
+        numberToCard = { bestScore = 0, bestTime = math.huge },
+        cardToNumber = { bestScore = 0, bestTime = math.huge }
+    }
+    self:saveHighScores()
 end
 
 -- Pause the game
