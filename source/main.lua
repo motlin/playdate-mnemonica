@@ -26,12 +26,14 @@ assert(cardSpriteSheet, "Failed to load card sprite sheet")
 local sounds = {}
 sounds.crankTick = snd.sampleplayer.new("sounds/crank_tick")
 sounds.buttonPress = snd.sampleplayer.new("sounds/button_press")
+sounds.menuMove = snd.sampleplayer.new("sounds/menu_move")
 sounds.correct = snd.sampleplayer.new("sounds/correct")
 sounds.incorrect = snd.sampleplayer.new("sounds/incorrect")
 sounds.sessionComplete = snd.sampleplayer.new("sounds/session_complete")
 
 assert(sounds.crankTick, "Failed to load crank_tick.wav")
 assert(sounds.buttonPress, "Failed to load button_press.wav")
+assert(sounds.menuMove, "Failed to load menu_move.wav")
 assert(sounds.correct, "Failed to load correct.wav")
 assert(sounds.incorrect, "Failed to load incorrect.wav")
 assert(sounds.sessionComplete, "Failed to load session_complete.wav")
@@ -1021,11 +1023,11 @@ function playdate.update()
 
         -- Handle menu navigation
         if pd.buttonJustPressed(pd.kButtonUp) then
-            if gameState.soundEnabled then sounds.buttonPress:play() end
+            if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection - 1
             if menuSelection < 1 then menuSelection = 3 end
         elseif pd.buttonJustPressed(pd.kButtonDown) then
-            if gameState.soundEnabled then sounds.buttonPress:play() end
+            if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection + 1
             if menuSelection > 3 then menuSelection = 1 end
         elseif pd.buttonJustPressed(pd.kButtonA) then
@@ -1116,13 +1118,13 @@ function playdate.update()
             local numOptions = #gameState.mistakes > 0 and 3 or 2  -- 3 options if mistakes, 2 if perfect
 
             if pd.buttonJustPressed(pd.kButtonUp) then
-                if gameState.soundEnabled then sounds.buttonPress:play() end
+                if gameState.soundEnabled then sounds.menuMove:play() end
                 completionScreenState.selectedOption = completionScreenState.selectedOption - 1
                 if completionScreenState.selectedOption < 1 then
                     completionScreenState.selectedOption = numOptions
                 end
             elseif pd.buttonJustPressed(pd.kButtonDown) then
-                if gameState.soundEnabled then sounds.buttonPress:play() end
+                if gameState.soundEnabled then sounds.menuMove:play() end
                 completionScreenState.selectedOption = completionScreenState.selectedOption + 1
                 if completionScreenState.selectedOption > numOptions then
                     completionScreenState.selectedOption = 1
@@ -1168,22 +1170,26 @@ local function updateMenuItems()
     if gameState.currentMode ~= GameState.MODES.MENU and gameState.currentMode ~= GameState.MODES.STUDY then
         if gameState.isPaused then
             menu:addMenuItem("Resume", function()
+                if gameState.soundEnabled then sounds.buttonPress:play() end
                 gameState:resume()
                 updateMenuItems()
             end)
         else
             menu:addMenuItem("Pause", function()
+                if gameState.soundEnabled then sounds.buttonPress:play() end
                 gameState:pause()
                 updateMenuItems()
             end)
         end
 
         menu:addMenuItem("Restart Quiz", function()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
             resetGame()
             updateMenuItems()
         end)
 
         menu:addMenuItem("Main Menu", function()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
             gameState.currentMode = GameState.MODES.MENU
             updateMenuItems()
         end)
