@@ -818,7 +818,7 @@ local function drawMistakeReviewComplete()
     end
 
     -- Instructions
-    gfx.drawTextAligned("Press A to return to menu", 200, 210, kTextAlignment.center)
+    gfx.drawTextAligned("Press A to return to quiz summary", 200, 210, kTextAlignment.center)
 end
 
 local function drawMistakeReviewStudy()
@@ -990,9 +990,28 @@ function playdate.update()
 
                     if pd.buttonJustPressed(pd.kButtonA) then
                         if gameState.soundEnabled then sounds.buttonPress:play() end
-                        -- Return to main menu
-                        gameState.currentMode = GameState.MODES.MENU
-                        gameState.mistakeReviewMode = nil
+                        -- Return to original quiz summary
+                        if gameState.originalSession then
+                            -- Restore the original session
+                            gameState.currentSession = gameState.originalSession
+                            gameState.originalSession = nil
+                            gameState.mistakeReviewMode = nil
+                            gameState.quizState = GameState.QUIZ_STATES.COMPLETE
+                            -- Set mode to show the completion screen
+                            if gameState.currentSession.mode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+                                gameState.currentMode = GameState.MODES.QUIZ_NUMBER_TO_CARD
+                            else
+                                gameState.currentMode = GameState.MODES.QUIZ_CARD_TO_NUMBER
+                            end
+                            -- Reset completion screen state
+                            completionScreenState.showingMistakes = false
+                            completionScreenState.mistakeScrollOffset = 0
+                            completionScreenState.selectedOption = 1
+                        else
+                            -- Fallback to menu if no original session
+                            gameState.currentMode = GameState.MODES.MENU
+                            gameState.mistakeReviewMode = nil
+                        end
                     end
                 end
             end
