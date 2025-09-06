@@ -582,10 +582,24 @@ local function drawCompletionSummary()
     local finalTime = "Time: " .. gameState:getFormattedTime()
     gfx.drawTextAligned(finalTime, 200, 70, kTextAlignment.center)
 
-    -- Mistakes summary
+    -- Show high score comparison
+    local currentModeScores = gameState:getCurrentModeHighScores()
+    if not isNewBest and currentModeScores.bestScore > 0 then
+        gfx.drawTextAligned("── Previous Best ──", 200, 90, kTextAlignment.center)
+        local bestScoreText = "Best: " .. currentModeScores.bestScore .. "/52"
+        if currentModeScores.bestTime < math.huge then
+            local bestMinutes = math.floor(currentModeScores.bestTime / 60)
+            local bestSeconds = math.floor(currentModeScores.bestTime % 60)
+            bestScoreText = bestScoreText .. string.format(" (%d:%02d)", bestMinutes, bestSeconds)
+        end
+        gfx.drawTextAligned(bestScoreText, 200, 105, kTextAlignment.center)
+    end
+
+    -- Mistakes summary (adjust Y position)
+    local mistakesSectionY = isNewBest and 95 or (currentModeScores.bestScore > 0 and 120 or 95)
     local numMistakes = #gameState.mistakes
     if numMistakes > 0 then
-        gfx.drawTextAligned("── Mistakes: " .. numMistakes .. " ──", 200, 95, kTextAlignment.center)
+        gfx.drawTextAligned("── Mistakes: " .. numMistakes .. " ──", 200, mistakesSectionY, kTextAlignment.center)
 
         -- Show first few mistakes as preview
         local previewCount = math.min(3, numMistakes)
@@ -597,18 +611,18 @@ local function drawCompletionSummary()
             else
                 mistakeText = mistakeText .. " (you: " .. mistake.userAnswer .. ")"
             end
-            gfx.drawText(mistakeText, 40, 95 + (i * 15))
+            gfx.drawText(mistakeText, 40, mistakesSectionY + (i * 15))
         end
 
         if numMistakes > 3 then
-            gfx.drawTextAligned("... and " .. (numMistakes - 3) .. " more", 200, 95 + (4 * 15), kTextAlignment.center)
+            gfx.drawTextAligned("... and " .. (numMistakes - 3) .. " more", 200, mistakesSectionY + (4 * 15), kTextAlignment.center)
         end
     else
-        gfx.drawTextAligned("── Perfect Score! ──", 200, 95, kTextAlignment.center)
+        gfx.drawTextAligned("── Perfect Score! ──", 200, mistakesSectionY, kTextAlignment.center)
     end
 
-    -- Menu options
-    local menuY = 170
+    -- Menu options (adjust Y position based on content above)
+    local menuY = mistakesSectionY + (numMistakes > 0 and math.min(numMistakes, 3) * 15 + 25 or 25)
     local menuOptions = {
         "Play Again",
         numMistakes > 0 and "Review Mistakes" or nil,
@@ -896,9 +910,42 @@ local function drawMenu()
 
     -- Draw title
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Mnemonica Stack", 200, 30, kTextAlignment.center)
-    gfx.drawTextAligned("Memorizer", 200, 50, kTextAlignment.center)
+    gfx.drawTextAligned("Mnemonica Stack", 200, 20, kTextAlignment.center)
+    gfx.drawTextAligned("Memorizer", 200, 40, kTextAlignment.center)
     gfx.setFont()
+
+    -- Draw high scores section
+    gfx.drawTextAligned("── High Scores ──", 200, 65, kTextAlignment.center)
+
+    -- Number → Card high score
+    local numberToCardScores = gameState.highScores.numberToCard
+    local numberToCardText = "Number → Card: "
+    if numberToCardScores.bestScore > 0 then
+        numberToCardText = numberToCardText .. numberToCardScores.bestScore .. "/52"
+        if numberToCardScores.bestTime < math.huge then
+            local minutes = math.floor(numberToCardScores.bestTime / 60)
+            local seconds = math.floor(numberToCardScores.bestTime % 60)
+            numberToCardText = numberToCardText .. string.format(" (%d:%02d)", minutes, seconds)
+        end
+    else
+        numberToCardText = numberToCardText .. "No scores yet"
+    end
+    gfx.drawTextAligned(numberToCardText, 200, 80, kTextAlignment.center)
+
+    -- Card → Number high score
+    local cardToNumberScores = gameState.highScores.cardToNumber
+    local cardToNumberText = "Card → Number: "
+    if cardToNumberScores.bestScore > 0 then
+        cardToNumberText = cardToNumberText .. cardToNumberScores.bestScore .. "/52"
+        if cardToNumberScores.bestTime < math.huge then
+            local minutes = math.floor(cardToNumberScores.bestTime / 60)
+            local seconds = math.floor(cardToNumberScores.bestTime % 60)
+            cardToNumberText = cardToNumberText .. string.format(" (%d:%02d)", minutes, seconds)
+        end
+    else
+        cardToNumberText = cardToNumberText .. "No scores yet"
+    end
+    gfx.drawTextAligned(cardToNumberText, 200, 95, kTextAlignment.center)
 
     -- Menu options
     local menuItems = {
@@ -907,14 +954,14 @@ local function drawMenu()
         "Study Mode"
     }
 
-    -- Draw menu items with selection indicator
+    -- Draw menu items with selection indicator (adjusted y positions to account for high scores)
     for i, item in ipairs(menuItems) do
-        local y = 100 + (i - 1) * 30
+        local y = 120 + (i - 1) * 25
 
         if i == menuSelection then
             -- Draw selection box
             gfx.setColor(gfx.kColorBlack)
-            gfx.fillRoundRect(60, y - 5, 280, 25, 4)
+            gfx.fillRoundRect(60, y - 3, 280, 21, 3)
             gfx.setColor(gfx.kColorWhite)
             gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
             gfx.setColor(gfx.kColorBlack)
@@ -924,8 +971,8 @@ local function drawMenu()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Use D-pad to select", 200, 200, kTextAlignment.center)
-    gfx.drawTextAligned("(A) Start selected mode", 200, 215, kTextAlignment.center)
+    gfx.drawTextAligned("Use D-pad to select", 200, 210, kTextAlignment.center)
+    gfx.drawTextAligned("(A) Start selected mode", 200, 225, kTextAlignment.center)
 end
 
 function playdate.update()
