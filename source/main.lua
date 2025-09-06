@@ -110,6 +110,7 @@ local selectedCard = 1 -- Index in uspccOrder (1-52) for crank selection
 local selectedNumber = 1 -- Selected position number (1-52) for Card→Number quiz
 local showingCorrectAnswer = false
 local menuSelection = 1 -- Currently selected menu item (1-3)
+local studyModePosition = 1 -- Current position in study mode (1-52)
 
 -- Crank handling
 local lastCrankPosition = 0
@@ -340,12 +341,9 @@ local function startSelectedMode()
         showingCorrectAnswer = false
         lastCrankPosition = pd.getCrankPosition()
     else
-        -- Study mode not yet implemented
-        -- For now, just start Number→Card mode
-        gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
-        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
-        selectedCard = 1
-        showingCorrectAnswer = false
+        -- Study mode
+        gameState.currentMode = GameState.MODES.STUDY
+        studyModePosition = 1
         lastCrankPosition = pd.getCrankPosition()
     end
 end
@@ -556,6 +554,93 @@ local function drawComplete()
     gfx.drawTextAligned("(B) Main Menu", 200, 205, kTextAlignment.center)
 end
 
+local function updateStudyModePosition()
+    local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
+    local degreesPerPosition = 360 / 52  -- Each position gets approximately 6.92 degrees
+
+    -- Calculate crank velocity for smooth feel
+    local delta = crankPosition - lastCrankPosition
+    -- Handle wrap-around at 0/360 boundary
+    if delta > 180 then
+        delta = delta - 360
+    elseif delta < -180 then
+        delta = delta + 360
+    end
+    crankVelocity = delta
+
+    -- Map crank position to a floating point position
+    local floatPosition = (crankPosition / degreesPerPosition) + 1
+
+    -- Add subtle snap behavior when crank is moving slowly
+    local snapThreshold = 0.35  -- How close to snap to the nearest position
+    local velocityThreshold = 3  -- Degrees per frame to consider "slow"
+
+    if math.abs(crankVelocity) < velocityThreshold then
+        -- When moving slowly, snap to nearest position
+        local nearestPosition = math.floor(floatPosition + 0.5)
+        local distanceToNearest = math.abs(floatPosition - nearestPosition)
+
+        if distanceToNearest < snapThreshold then
+            floatPosition = nearestPosition
+        end
+    end
+
+    -- Convert to integer position
+    local newPosition = math.floor(floatPosition)
+
+    -- Handle edge case at position 360 degrees (wraps to position 1)
+    if newPosition > 52 then newPosition = 1 end
+    if newPosition < 1 then newPosition = 1 end
+
+    -- Check if position changed to play sound effect
+    if newPosition ~= studyModePosition then
+        studyModePosition = newPosition
+        -- Play crank tick sound when position changes
+        if gameState.soundEnabled then sounds.crankTick:play() end
+    end
+
+    lastCrankPosition = crankPosition
+end
+
+local function drawStudyMode()
+    gfx.clear()
+
+    -- Draw title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Study Mode", 200, 10, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Get the card at this position
+    local cardAtPosition = mnemonicaStack[studyModePosition]
+
+    -- Draw position number prominently
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Position " .. studyModePosition, 200, 40, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Draw the card at 1x scale
+    drawCard(cardAtPosition, 200, 90, 1)
+
+    -- Draw both directions of the mapping
+    gfx.drawTextAligned("Position " .. studyModePosition .. " → " .. cardAtPosition, 200, 140, kTextAlignment.center)
+
+    -- Find this card's position (for verification)
+    local verifyText = cardAtPosition .. " → Position " .. studyModePosition
+    gfx.drawTextAligned(verifyText, 200, 160, kTextAlignment.center)
+
+    -- Draw crank indicator if docked
+    if pd.isCrankDocked() then
+        pd.ui.crankIndicator:draw()
+    end
+
+    -- Draw instructions
+    gfx.drawTextAligned("Crank: Browse • ←→: ±1 • ↑↓: ±10 • B: Menu", 200, 200, kTextAlignment.center)
+
+    -- Draw position indicator
+    local positionText = studyModePosition .. " / 52"
+    gfx.drawTextAligned(positionText, 200, 220, kTextAlignment.center)
+end
+
 local function drawMenu()
     gfx.clear()
 
@@ -619,6 +704,36 @@ function playdate.update()
             startSelectedMode()
         end
 
+    elseif gameState.currentMode == GameState.MODES.STUDY then
+        -- Study mode - update position based on crank
+        updateStudyModePosition()
+        drawStudyMode()
+
+        -- Handle D-pad for quick jumps
+        if pd.buttonJustPressed(pd.kButtonUp) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            studyModePosition = studyModePosition - 10
+            if studyModePosition < 1 then studyModePosition = studyModePosition + 52 end
+        elseif pd.buttonJustPressed(pd.kButtonDown) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            studyModePosition = studyModePosition + 10
+            if studyModePosition > 52 then studyModePosition = studyModePosition - 52 end
+        elseif pd.buttonJustPressed(pd.kButtonLeft) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            studyModePosition = studyModePosition - 1
+            if studyModePosition < 1 then studyModePosition = 52 end
+        elseif pd.buttonJustPressed(pd.kButtonRight) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            studyModePosition = studyModePosition + 1
+            if studyModePosition > 52 then studyModePosition = 1 end
+        end
+
+        -- Handle B button to return to menu
+        if pd.buttonJustPressed(pd.kButtonB) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.currentMode = GameState.MODES.MENU
+        end
+
     elseif gameState.quizState == GameState.QUIZ_STATES.QUESTION then
         -- Update the appropriate selection based on quiz mode
         if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
@@ -665,8 +780,8 @@ local menu = pd.getSystemMenu()
 local function updateMenuItems()
     menu:removeAllMenuItems()
 
-    -- Don't show pause/resume in menu mode
-    if gameState.currentMode ~= GameState.MODES.MENU then
+    -- Don't show pause/resume in menu mode or study mode
+    if gameState.currentMode ~= GameState.MODES.MENU and gameState.currentMode ~= GameState.MODES.STUDY then
         if gameState.isPaused then
             menu:addMenuItem("Resume", function()
                 gameState:resume()
