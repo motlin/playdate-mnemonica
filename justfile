@@ -1,7 +1,7 @@
-project_name := "Hex Flip"
+project_name := "Mnemonica"
 source_dir := "source"
 output_dir := "builds"
-pdx_file := output_dir / "Hex Flip.pdx"
+pdx_file := output_dir / "Mnemonica.pdx"
 
 # 📋 List all recipes (default)
 default:
