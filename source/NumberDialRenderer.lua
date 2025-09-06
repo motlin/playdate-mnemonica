@@ -29,6 +29,11 @@ function NumberDialRenderer:new()
     renderer.numberFont = gfx.getSystemFont(gfx.font.kFontFamilyHeading)
     renderer.smallNumberFont = gfx.getSystemFont()
 
+    -- Performance optimization: cache transform calculations
+    renderer.transformCache = {}
+    renderer.lastCacheRotation = -999  -- Force initial cache refresh
+    renderer.cacheThreshold = 1.0  -- Degrees of rotation change before refreshing cache
+
     return renderer
 end
 
@@ -156,17 +161,17 @@ function NumberDialRenderer:drawNumber(number, x, y, scale, opacity)
     -- Draw the number text
     local numberText = tostring(number)
 
-    -- Apply minimal dithering for depth effect to maintain contrast
-    if opacity < 0.8 then
+    -- Apply minimal dithering for depth effect to maintain contrast (reduced for performance)
+    if opacity < 0.7 then  -- Raised threshold to reduce dithering frequency
         -- Use lighter dither patterns for better visibility
-        local ditherLevel = math.floor((1 - opacity) * 3)  -- Reduced from 8 to 3
+        local ditherLevel = math.floor((1 - opacity) * 2)  -- Further reduced from 3 to 2
         gfx.setDitherPattern(ditherLevel / 8, gfx.image.kDitherTypeBayer4x4)
     end
 
     gfx.drawTextAligned(numberText, x, y - 7 * scale, kTextAlignment.center)
 
     -- Reset dither pattern
-    if opacity < 0.8 then
+    if opacity < 0.7 then
         gfx.setDitherPattern(0)
     end
 
@@ -179,17 +184,38 @@ function NumberDialRenderer:draw(selectedNumber)
     -- Update rotation animation
     self:updateRotation(selectedNumber)
 
-    -- Collect transform data for all visible numbers
+    -- Check if we need to refresh the transform cache
+    local rotationChange = math.abs(self.currentRotation - self.lastCacheRotation)
+    local shouldRefreshCache = rotationChange >= self.cacheThreshold or not self.transformCache[selectedNumber]
+
     local numbersToDraw = {}
 
-    for i = 1, 52 do
-        local transform = self:getNumberTransform(i, selectedNumber)
+    if shouldRefreshCache then
+        -- Recalculate transforms and update cache
+        self.transformCache[selectedNumber] = {}
+        self.lastCacheRotation = self.currentRotation
 
-        if transform.isVisible then
-            table.insert(numbersToDraw, {
-                number = i,
-                transform = transform
-            })
+        for i = 1, 52 do
+            local transform = self:getNumberTransform(i, selectedNumber)
+            self.transformCache[selectedNumber][i] = transform
+
+            if transform.isVisible then
+                table.insert(numbersToDraw, {
+                    number = i,
+                    transform = transform
+                })
+            end
+        end
+    else
+        -- Use cached transforms
+        for i = 1, 52 do
+            local transform = self.transformCache[selectedNumber][i]
+            if transform and transform.isVisible then
+                table.insert(numbersToDraw, {
+                    number = i,
+                    transform = transform
+                })
+            end
         end
     end
 
@@ -201,7 +227,7 @@ function NumberDialRenderer:draw(selectedNumber)
     -- Draw numbers in correct order
     for _, numberData in ipairs(numbersToDraw) do
         local transform = numberData.transform
-        self:drawNumber(numberData.number, transform.x, transform.y, transform.scale, transform.opacity)
+        self:drawNumber(numberData.number, math.floor(transform.x), math.floor(transform.y), transform.scale, transform.opacity)
     end
 
     -- Draw selection indicator (subtle arrows or brackets around selected number)

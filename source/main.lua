@@ -42,6 +42,9 @@ assert(sounds.sessionComplete, "Failed to load session_complete.wav")
 local cardImages = {}
 local cardWidth, cardHeight = 50, 70
 
+-- Cache for scaled card images to avoid expensive scaling operations
+local scaledCardCache = {}
+
 -- Extract individual card images from the sprite sheet
 -- The sheet has 13 cards per row, 5 rows total
 for row = 1, 5 do
@@ -54,7 +57,25 @@ for row = 1, 5 do
         gfx.popContext()
         local index = (row - 1) * 13 + col
         cardImages[index] = cardImage
+        scaledCardCache[index] = {}
     end
+end
+
+-- Function to get a cached scaled card image
+local function getCachedScaledCard(cardIndex, scale)
+    if not cardIndex or not cardImages[cardIndex] then
+        return nil
+    end
+
+    -- Round scale to nearest 0.1 to limit cache size
+    local roundedScale = math.floor(scale * 10 + 0.5) / 10
+
+    local cache = scaledCardCache[cardIndex]
+    if not cache[roundedScale] then
+        cache[roundedScale] = cardImages[cardIndex]:scaledImage(roundedScale)
+    end
+
+    return cache[roundedScale]
 end
 
 -- Card lookup mapping (card name to sprite index)
@@ -132,13 +153,17 @@ end
 
 -- Helper function to draw a card centered at position
 local function drawCard(cardName, x, y, scale)
-    local cardImage = getCardImage(cardName)
-    if cardImage then
+    local index = cardToIndex[cardName]
+    if index and cardImages[index] then
         if scale and scale ~= 1 then
-            local scaledImage = cardImage:scaledImage(scale)
-            scaledImage:drawCentered(x, y)
+            local scaledImage = getCachedScaledCard(index, scale)
+            if scaledImage then
+                scaledImage:drawCentered(x, y)
+            else
+                cardImages[index]:drawCentered(x, y)
+            end
         else
-            cardImage:drawCentered(x, y)
+            cardImages[index]:drawCentered(x, y)
         end
     else
         -- Fallback to text if image not found
@@ -148,6 +173,11 @@ end
 
 local function updateSelectedCard()
     local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
+
+    -- Only process if crank position has changed significantly (reduces unnecessary calculations)
+    if math.abs(crankPosition - lastCrankPosition) < 0.5 then
+        return  -- No significant change, skip processing
+    end
 
     -- Calculate crank velocity for smooth feel
     local delta = crankPosition - lastCrankPosition
@@ -195,6 +225,12 @@ end
 
 local function updateSelectedNumber()
     local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
+
+    -- Only process if crank position has changed significantly (reduces unnecessary calculations)
+    if math.abs(crankPosition - lastCrankPosition) < 0.5 then
+        return  -- No significant change, skip processing
+    end
+
     local degreesPerNumber = 360 / 52  -- Each number gets approximately 6.92 degrees
 
     -- Calculate crank velocity for smooth feel
@@ -715,6 +751,12 @@ end
 
 local function updateStudyModePosition()
     local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
+
+    -- Only process if crank position has changed significantly (reduces unnecessary calculations)
+    if math.abs(crankPosition - lastCrankPosition) < 0.5 then
+        return  -- No significant change, skip processing
+    end
+
     local degreesPerPosition = 360 / 52  -- Each position gets approximately 6.92 degrees
 
     -- Calculate crank velocity for smooth feel
@@ -1276,6 +1318,10 @@ end
 
 -- Initialize game
 math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
+
+-- Set target frame rate for consistent performance (30 FPS is optimal for Playdate)
+pd.display.setRefreshRate(30)
+
 gameState:loadHighScores()  -- Load saved high scores from persistent storage
 gameState:loadSettings()  -- Load settings including last selected menu mode
 menuSelection = gameState.lastSelectedMenuMode  -- Restore last selected menu item
