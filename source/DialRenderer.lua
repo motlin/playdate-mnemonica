@@ -30,6 +30,11 @@ function DialRenderer:new(cardImages, cardWidth, cardHeight)
     renderer.targetRotation = 0     -- Target rotation angle (for smooth animation)
     renderer.rotationSpeed = 0.2    -- Smoothing factor for rotation animation (optimized for responsive feel)
 
+    -- Performance optimization: cache transform calculations
+    renderer.transformCache = {}
+    renderer.lastCacheRotation = -999  -- Force initial cache refresh
+    renderer.cacheThreshold = 1.0  -- Degrees of rotation change before refreshing cache
+
     return renderer
 end
 
@@ -139,18 +144,40 @@ function DialRenderer:draw(uspccOrder, selectedCard, getCardImage, drawCardFunct
     -- Update rotation animation
     self:updateRotation(selectedCard, totalCards)
 
-    -- Collect transform data for all visible cards
+    -- Check if we need to refresh the transform cache
+    local rotationChange = math.abs(self.currentRotation - self.lastCacheRotation)
+    local shouldRefreshCache = rotationChange >= self.cacheThreshold or not self.transformCache[selectedCard]
+
     local cardsToDraw = {}
 
-    for i = 1, totalCards do
-        local transform = self:getCardTransform(i, selectedCard, totalCards)
+    if shouldRefreshCache then
+        -- Recalculate transforms and update cache
+        self.transformCache[selectedCard] = {}
+        self.lastCacheRotation = self.currentRotation
 
-        if transform.isVisible then
-            table.insert(cardsToDraw, {
-                index = i,
-                cardName = uspccOrder[i],
-                transform = transform
-            })
+        for i = 1, totalCards do
+            local transform = self:getCardTransform(i, selectedCard, totalCards)
+            self.transformCache[selectedCard][i] = transform
+
+            if transform.isVisible then
+                table.insert(cardsToDraw, {
+                    index = i,
+                    cardName = uspccOrder[i],
+                    transform = transform
+                })
+            end
+        end
+    else
+        -- Use cached transforms
+        for i = 1, totalCards do
+            local transform = self.transformCache[selectedCard][i]
+            if transform and transform.isVisible then
+                table.insert(cardsToDraw, {
+                    index = i,
+                    cardName = uspccOrder[i],
+                    transform = transform
+                })
+            end
         end
     end
 
@@ -164,17 +191,15 @@ function DialRenderer:draw(uspccOrder, selectedCard, getCardImage, drawCardFunct
         local transform = cardData.transform
         local cardName = cardData.cardName
 
-        -- Apply dithering pattern for cards that aren't at the front
-        -- Only apply light dithering to maintain contrast
-        if transform.opacity < 0.8 then
-            -- Use lighter dither patterns for better visibility
-            local ditherLevel = math.floor((1 - transform.opacity) * 4)  -- Reduced from 8 to 4
+        -- Apply dithering pattern for cards that aren't at the front (reduced for performance)
+        if transform.opacity < 0.7 then  -- Raised threshold to reduce dithering frequency
+            local ditherLevel = math.floor((1 - transform.opacity) * 2)  -- Reduced from 4 to 2
             gfx.setDitherPattern(ditherLevel / 8, gfx.image.kDitherTypeBayer4x4)
         end
 
         -- Draw the card
         if drawCardFunction then
-            drawCardFunction(cardName, transform.x, transform.y, transform.scale)
+            drawCardFunction(cardName, math.floor(transform.x), math.floor(transform.y), transform.scale)
         else
             -- Fallback drawing
             local cardImage = getCardImage(cardName)
@@ -185,7 +210,7 @@ function DialRenderer:draw(uspccOrder, selectedCard, getCardImage, drawCardFunct
         end
 
         -- Reset dither pattern
-        if transform.opacity < 0.8 then
+        if transform.opacity < 0.7 then
             gfx.setDitherPattern(0)
         end
     end
