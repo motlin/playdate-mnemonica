@@ -1,5 +1,6 @@
 # PLAYDATE SDK LICENSE 1.0
-*February 25 2022*
+
+_February 25 2022_
 
 Welcome to the Playdate SDK license. Although it is filled with a heaping helping of legal terminology, it's really pretty straightforward.
 
