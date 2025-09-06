@@ -104,7 +104,8 @@ function NumberDialRenderer:getNumberTransform(numberIndex, selectedNumber)
 
     -- Calculate opacity/visibility based on position
     -- Numbers at the back (bottom) should be dimmer
-    local opacity = 0.3 + (depthFactor * 0.7)  -- Range from 0.3 to 1.0
+    -- Increased minimum opacity for better contrast on 1-bit display
+    local opacity = 0.6 + (depthFactor * 0.4)  -- Range from 0.6 to 1.0
 
     -- Determine if number should be visible (limit number of visible numbers)
     local distanceFromSelected = math.abs(numberIndex - selectedNumber)
@@ -146,25 +147,26 @@ function NumberDialRenderer:drawNumber(number, x, y, scale, opacity)
     gfx.setColor(gfx.kColorWhite)
     gfx.fillCircleAtPoint(x, y, bgRadius)
 
-    -- Draw black border
+    -- Draw thicker black border for better visibility
     gfx.setColor(gfx.kColorBlack)
-    gfx.setLineWidth(2)
+    gfx.setLineWidth(3)  -- Increased from 2 to 3 for better contrast
     gfx.drawCircleAtPoint(x, y, bgRadius)
     gfx.setLineWidth(1)
 
     -- Draw the number text
     local numberText = tostring(number)
 
-    -- Apply dithering for depth effect on non-selected numbers
-    if opacity < 0.9 then
-        local ditherLevel = math.floor((1 - opacity) * 8)
-        gfx.setDitherPattern(ditherLevel / 8, gfx.image.kDitherTypeBayer8x8)
+    -- Apply minimal dithering for depth effect to maintain contrast
+    if opacity < 0.8 then
+        -- Use lighter dither patterns for better visibility
+        local ditherLevel = math.floor((1 - opacity) * 3)  -- Reduced from 8 to 3
+        gfx.setDitherPattern(ditherLevel / 8, gfx.image.kDitherTypeBayer4x4)
     end
 
     gfx.drawTextAligned(numberText, x, y - 7 * scale, kTextAlignment.center)
 
     -- Reset dither pattern
-    if opacity < 0.9 then
+    if opacity < 0.8 then
         gfx.setDitherPattern(0)
     end
 
@@ -293,32 +295,47 @@ end
 
 -- Draw dial frame/background
 function NumberDialRenderer:drawFrame()
-    -- Draw subtle circular guide
+    -- Draw solid circular guide for better contrast
     gfx.setLineWidth(1)
-    gfx.setPattern({0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55})
+    -- Use solid line instead of dithered pattern for better visibility
     gfx.drawEllipseAtPoint(
         self.centerX,
         self.centerY,
         self.radius + 20,
         (self.radius + 20) * 0.6
     )
-    gfx.setPattern({})
-    gfx.setLineWidth(1)
 
     -- Draw number range indicators at cardinal points
     gfx.setFont()
 
-    -- Draw "1-13" at top
-    gfx.drawTextAligned("1-13", self.centerX, 20, kTextAlignment.center)
+    -- Draw number range indicators with white background for better readability
+    -- Top indicator
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(self.centerX - 20, 15, 40, 15)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRect(self.centerX - 20, 15, 40, 15)
+    gfx.drawTextAligned("1-13", self.centerX, 18, kTextAlignment.center)
 
-    -- Draw "14-26" at right
-    gfx.drawTextAligned("14-26", self.centerX + 100, self.centerY, kTextAlignment.center)
+    -- Right indicator
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(self.centerX + 80, self.centerY - 7, 45, 15)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRect(self.centerX + 80, self.centerY - 7, 45, 15)
+    gfx.drawTextAligned("14-26", self.centerX + 102, self.centerY - 4, kTextAlignment.center)
 
-    -- Draw "27-39" at bottom
-    gfx.drawTextAligned("27-39", self.centerX, 200, kTextAlignment.center)
+    -- Bottom indicator
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(self.centerX - 20, 195, 45, 15)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRect(self.centerX - 20, 195, 45, 15)
+    gfx.drawTextAligned("27-39", self.centerX, 198, kTextAlignment.center)
 
-    -- Draw "40-52" at left
-    gfx.drawTextAligned("40-52", self.centerX - 100, self.centerY, kTextAlignment.center)
+    -- Left indicator
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(self.centerX - 125, self.centerY - 7, 45, 15)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRect(self.centerX - 125, self.centerY - 7, 45, 15)
+    gfx.drawTextAligned("40-52", self.centerX - 102, self.centerY - 4, kTextAlignment.center)
 end
 
 return NumberDialRenderer

@@ -355,9 +355,11 @@ end
 local function drawQuizNumberToCard()
     gfx.clear()
 
-    -- Draw question at top
+    -- Draw question at top with bold text
     local questionText = "Position " .. gameState.currentPosition .. "?"
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned(questionText, 200, 10, kTextAlignment.center)
+    gfx.setFont()
 
     -- Draw timer in top-right corner
     gameState:updateTimer()
@@ -390,9 +392,11 @@ end
 local function drawQuizCardToNumber()
     gfx.clear()
 
-    -- Draw question card at top
+    -- Draw question card at top with bold text
     local questionCard = mnemonicaStack[gameState.currentPosition]
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned("What position is this card?", 200, 10, kTextAlignment.center)
+    gfx.setFont()
 
     -- Draw the question card
     drawCard(questionCard, 200, 50, 1)
@@ -443,17 +447,23 @@ local function drawFeedback()
     if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         -- Number → Card mode feedback
         if gameState.userWasCorrect then
+            gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
+            gfx.setFont()
             -- Show the correct card at 1x scale
             drawCard(gameState.correctAnswer, 200, 70, 1)
         elseif gameState.userPassed then
+            gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("You passed!", 200, 10, kTextAlignment.center)
+            gfx.setFont()
 
             -- Show correct answer
             gfx.drawTextAligned("Correct answer:", 200, 35, kTextAlignment.center)
             drawCard(gameState.correctAnswer, 200, 80, 1)
         else
+            gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("Wrong!", 200, 10, kTextAlignment.center)
+            gfx.setFont()
 
             -- Show user's wrong answer on the left at 1x scale
             gfx.drawTextAligned("You picked:", 100, 35, kTextAlignment.center)
@@ -471,13 +481,19 @@ local function drawFeedback()
         drawCard(questionCard, 200, 50, 1)
 
         if gameState.userWasCorrect then
+            gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("Correct!", 200, 100, kTextAlignment.center)
+            gfx.setFont()
             gfx.drawTextAligned("Position " .. gameState.correctAnswer, 200, 120, kTextAlignment.center)
         elseif gameState.userPassed then
+            gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("You passed!", 200, 100, kTextAlignment.center)
+            gfx.setFont()
             gfx.drawTextAligned("Correct position: " .. gameState.correctAnswer, 200, 120, kTextAlignment.center)
         else
+            gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("Wrong!", 200, 100, kTextAlignment.center)
+            gfx.setFont()
             gfx.drawTextAligned("You said: " .. gameState.userAnswer, 200, 120, kTextAlignment.center)
             gfx.drawTextAligned("Correct: Position " .. gameState.correctAnswer, 200, 140, kTextAlignment.center)
         end
@@ -498,9 +514,13 @@ local function drawComplete()
     local isNewBest = gameState:isNewHighScore()
 
     if isNewBest then
+        gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
         gfx.drawTextAligned("NEW HIGH SCORE!", 200, 30, kTextAlignment.center)
+        gfx.setFont()
     else
+        gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
         gfx.drawTextAligned("Quiz Complete!", 200, 30, kTextAlignment.center)
+        gfx.setFont()
     end
 
     local finalScore = "Final Score: " .. gameState.score .. "/52"
