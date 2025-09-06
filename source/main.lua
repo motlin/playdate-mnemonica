@@ -1,22 +1,20 @@
 import "CoreLibs/graphics"
 import "CoreLibs/ui"
-import "GameState"
-import "DialRenderer"
-import "NumberDialRenderer"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
 
+-- Import modules
+local GameState = import "GameState"
+local DialRenderer = import "DialRenderer"
+local NumberDialRenderer = import "NumberDialRenderer"
+
 -- Initialize GameState manager
 local gameState = GameState:new()
 
--- Initialize DialRenderer for rotating dial visualization
-local DialRenderer = DialRenderer
-local dialRenderer = nil  -- Will be initialized after card images are loaded
-
--- Initialize NumberDialRenderer for number selection
-local NumberDialRenderer = NumberDialRenderer
+-- Initialize renderers (will be initialized after resources are loaded)
+local dialRenderer = nil
 local numberDialRenderer = nil
 
 -- Load card sprites as a single image
