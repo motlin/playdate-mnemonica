@@ -2,6 +2,7 @@ import "CoreLibs/graphics"
 import "CoreLibs/ui"
 import "GameState"
 import "DialRenderer"
+import "NumberDialRenderer"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -13,6 +14,10 @@ local gameState = GameState:new()
 -- Initialize DialRenderer for rotating dial visualization
 local DialRenderer = DialRenderer
 local dialRenderer = nil  -- Will be initialized after card images are loaded
+
+-- Initialize NumberDialRenderer for number selection
+local NumberDialRenderer = NumberDialRenderer
+local numberDialRenderer = nil
 
 -- Load card sprites as a single image
 local cardSpriteSheet = gfx.image.new("images/cards")
@@ -77,6 +82,9 @@ end
 -- Initialize DialRenderer after card images are loaded
 dialRenderer = DialRenderer:new(cardImages, cardWidth, cardHeight)
 
+-- Initialize NumberDialRenderer
+numberDialRenderer = NumberDialRenderer:new()
+
 -- Mnemonica stack order (1-52) - using S/D/C/H for suits
 local mnemonicaStack = {
     "4C", "2H", "7D", "3C", "4H", "6D", "AS", "5H", "9S", "2S",
@@ -101,6 +109,7 @@ local uspccOrder = {
 
 -- UI state (not managed by GameState)
 local selectedCard = 1 -- Index in uspccOrder (1-52) for crank selection
+local selectedNumber = 1 -- Selected position number (1-52) for Card→Number quiz
 local showingCorrectAnswer = false
 local menuSelection = 1 -- Currently selected menu item (1-3)
 
@@ -182,13 +191,71 @@ local function updateSelectedCard()
     lastCrankPosition = crankPosition
 end
 
-local function checkAnswer()
-    local correctCard = mnemonicaStack[gameState.currentPosition]
-    local selectedCardName = uspccOrder[selectedCard]
+local function updateSelectedNumber()
+    local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
+    local degreesPerNumber = 360 / 52  -- Each number gets approximately 6.92 degrees
 
-    gameState.correctAnswer = correctCard
-    gameState:submitAnswer(selectedCardName, false)
-    showingCorrectAnswer = true
+    -- Calculate crank velocity for smooth feel
+    local delta = crankPosition - lastCrankPosition
+    -- Handle wrap-around at 0/360 boundary
+    if delta > 180 then
+        delta = delta - 360
+    elseif delta < -180 then
+        delta = delta + 360
+    end
+    crankVelocity = delta
+
+    -- Map crank position to a floating point number position
+    local floatNumber = (crankPosition / degreesPerNumber) + 1
+
+    -- Add subtle snap behavior when crank is moving slowly
+    local snapThreshold = 0.35  -- How close to snap to the nearest number
+    local velocityThreshold = 3  -- Degrees per frame to consider "slow"
+
+    if math.abs(crankVelocity) < velocityThreshold then
+        -- When moving slowly, snap to nearest number position
+        local nearestNumber = math.floor(floatNumber + 0.5)
+        local distanceToNearest = math.abs(floatNumber - nearestNumber)
+
+        if distanceToNearest < snapThreshold then
+            floatNumber = nearestNumber
+        end
+    end
+
+    -- Convert to integer number position
+    local newNumber = math.floor(floatNumber)
+
+    -- Handle edge case at position 360 degrees (wraps to number 1)
+    if newNumber > 52 then newNumber = 1 end
+    if newNumber < 1 then newNumber = 1 end
+
+    -- Check if number changed to play sound effect
+    if newNumber ~= selectedNumber then
+        selectedNumber = newNumber
+        -- Play crank tick sound when number changes
+        if gameState.soundEnabled then sounds.crankTick:play() end
+    end
+
+    lastCrankPosition = crankPosition
+end
+
+local function checkAnswer()
+    if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        -- Number → Card mode: Check if selected card matches the position
+        local correctCard = mnemonicaStack[gameState.currentPosition]
+        local selectedCardName = uspccOrder[selectedCard]
+
+        gameState.correctAnswer = correctCard
+        gameState:submitAnswer(selectedCardName, false)
+        showingCorrectAnswer = true
+    elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        -- Card → Number mode: Check if selected number matches the card's position
+        local correctPosition = gameState.currentPosition
+
+        gameState.correctAnswer = tostring(correctPosition)
+        gameState:submitAnswer(tostring(selectedNumber), false)
+        showingCorrectAnswer = true
+    end
 
     if gameState.userWasCorrect then
         if gameState.soundEnabled then sounds.correct:play() end
@@ -198,9 +265,13 @@ local function checkAnswer()
 end
 
 local function passQuestion()
-    local correctCard = mnemonicaStack[gameState.currentPosition]
+    if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        local correctCard = mnemonicaStack[gameState.currentPosition]
+        gameState.correctAnswer = correctCard
+    elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        gameState.correctAnswer = tostring(gameState.currentPosition)
+    end
 
-    gameState.correctAnswer = correctCard
     gameState:submitAnswer("PASSED", true)
     showingCorrectAnswer = true
 
@@ -215,14 +286,31 @@ local function nextQuestion()
         if gameState.soundEnabled then sounds.sessionComplete:play() end
     else
         -- Set correct answer for next question
-        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+        if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+            gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+        elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+            gameState.correctAnswer = tostring(gameState.currentPosition)
+        end
     end
 end
 
 local function resetGame()
-    gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
-    gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
-    selectedCard = 1
+    -- Keep the current mode when resetting
+    local mode = gameState.currentMode
+    if mode == GameState.MODES.MENU then
+        mode = GameState.MODES.QUIZ_NUMBER_TO_CARD  -- Default to Number→Card
+    end
+
+    gameState:startQuiz(mode)
+
+    if mode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+        selectedCard = 1
+    elseif mode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        gameState.correctAnswer = tostring(gameState.currentPosition)
+        selectedNumber = 1
+    end
+
     showingCorrectAnswer = false
     lastCrankPosition = pd.getCrankPosition()
 end
@@ -240,16 +328,22 @@ local function startSelectedMode()
     gameState.lastSelectedMenuMode = menuSelection
     gameState:saveSettings()
 
-    -- Only Number→Card mode is currently implemented
+    -- Start the selected quiz mode
     if selectedMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         gameState:startQuiz(selectedMode)
         gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
         selectedCard = 1
         showingCorrectAnswer = false
         lastCrankPosition = pd.getCrankPosition()
+    elseif selectedMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        gameState:startQuiz(selectedMode)
+        gameState.correctAnswer = tostring(gameState.currentPosition)
+        selectedNumber = 1
+        showingCorrectAnswer = false
+        lastCrankPosition = pd.getCrankPosition()
     else
-        -- These modes will be implemented later
-        -- For now, just start the implemented mode
+        -- Study mode not yet implemented
+        -- For now, just start Number→Card mode
         gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
         gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
         selectedCard = 1
@@ -258,7 +352,7 @@ local function startSelectedMode()
     end
 end
 
-local function drawQuiz()
+local function drawQuizNumberToCard()
     gfx.clear()
 
     -- Draw question at top
@@ -293,6 +387,51 @@ local function drawQuiz()
     gfx.drawTextAligned("Crank: Select • A: Confirm • B: Pass", 200, 220, kTextAlignment.center)
 end
 
+local function drawQuizCardToNumber()
+    gfx.clear()
+
+    -- Draw question card at top
+    local questionCard = mnemonicaStack[gameState.currentPosition]
+    gfx.drawTextAligned("What position is this card?", 200, 10, kTextAlignment.center)
+
+    -- Draw the question card
+    drawCard(questionCard, 200, 50, 1)
+
+    -- Draw timer in top-right corner
+    gameState:updateTimer()
+    local timeText = gameState:getFormattedTime()
+    gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
+
+    -- Draw the rotating number dial
+    if numberDialRenderer then
+        numberDialRenderer:drawFrame()  -- Draw dial background/frame
+        numberDialRenderer:draw(selectedNumber)
+    else
+        -- Fallback to simple number display
+        gfx.drawTextAligned("Position: " .. selectedNumber, 200, 120, kTextAlignment.center)
+    end
+
+    -- Draw crank indicator if docked
+    if pd.isCrankDocked() then
+        pd.ui.crankIndicator:draw()
+    end
+
+    -- Draw progress at bottom
+    local progressText = gameState:getProgressString()
+    gfx.drawTextAligned(progressText, 200, 200, kTextAlignment.center)
+
+    -- Draw instructions
+    gfx.drawTextAligned("Crank: Select • A: Confirm • B: Pass", 200, 220, kTextAlignment.center)
+end
+
+local function drawQuiz()
+    if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        drawQuizNumberToCard()
+    elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        drawQuizCardToNumber()
+    end
+end
+
 local function drawFeedback()
     gfx.clear()
 
@@ -301,26 +440,47 @@ local function drawFeedback()
     local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
-    if gameState.userWasCorrect then
-        gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
-        -- Show the correct card at 1x scale
-        drawCard(gameState.correctAnswer, 200, 70, 1)
-    elseif gameState.userPassed then
-        gfx.drawTextAligned("You passed!", 200, 10, kTextAlignment.center)
+    if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        -- Number → Card mode feedback
+        if gameState.userWasCorrect then
+            gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
+            -- Show the correct card at 1x scale
+            drawCard(gameState.correctAnswer, 200, 70, 1)
+        elseif gameState.userPassed then
+            gfx.drawTextAligned("You passed!", 200, 10, kTextAlignment.center)
 
-        -- Show correct answer
-        gfx.drawTextAligned("Correct answer:", 200, 35, kTextAlignment.center)
-        drawCard(gameState.correctAnswer, 200, 80, 1)
-    else
-        gfx.drawTextAligned("Wrong!", 200, 10, kTextAlignment.center)
+            -- Show correct answer
+            gfx.drawTextAligned("Correct answer:", 200, 35, kTextAlignment.center)
+            drawCard(gameState.correctAnswer, 200, 80, 1)
+        else
+            gfx.drawTextAligned("Wrong!", 200, 10, kTextAlignment.center)
 
-        -- Show user's wrong answer on the left at 1x scale
-        gfx.drawTextAligned("You picked:", 100, 35, kTextAlignment.center)
-        drawCard(gameState.userAnswer, 100, 80, 1)
+            -- Show user's wrong answer on the left at 1x scale
+            gfx.drawTextAligned("You picked:", 100, 35, kTextAlignment.center)
+            drawCard(gameState.userAnswer, 100, 80, 1)
 
-        -- Show correct answer on the right at 1x scale
-        gfx.drawTextAligned("Correct:", 300, 35, kTextAlignment.center)
-        drawCard(gameState.correctAnswer, 300, 80, 1)
+            -- Show correct answer on the right at 1x scale
+            gfx.drawTextAligned("Correct:", 300, 35, kTextAlignment.center)
+            drawCard(gameState.correctAnswer, 300, 80, 1)
+        end
+    elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        -- Card → Number mode feedback
+        local questionCard = mnemonicaStack[gameState.currentPosition]
+
+        -- Show the card being questioned
+        drawCard(questionCard, 200, 50, 1)
+
+        if gameState.userWasCorrect then
+            gfx.drawTextAligned("Correct!", 200, 100, kTextAlignment.center)
+            gfx.drawTextAligned("Position " .. gameState.correctAnswer, 200, 120, kTextAlignment.center)
+        elseif gameState.userPassed then
+            gfx.drawTextAligned("You passed!", 200, 100, kTextAlignment.center)
+            gfx.drawTextAligned("Correct position: " .. gameState.correctAnswer, 200, 120, kTextAlignment.center)
+        else
+            gfx.drawTextAligned("Wrong!", 200, 100, kTextAlignment.center)
+            gfx.drawTextAligned("You said: " .. gameState.userAnswer, 200, 120, kTextAlignment.center)
+            gfx.drawTextAligned("Correct: Position " .. gameState.correctAnswer, 200, 140, kTextAlignment.center)
+        end
     end
 
     -- Draw score
@@ -442,7 +602,13 @@ function playdate.update()
         end
 
     elseif gameState.quizState == GameState.QUIZ_STATES.QUESTION then
-        updateSelectedCard()
+        -- Update the appropriate selection based on quiz mode
+        if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+            updateSelectedCard()
+        elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+            updateSelectedNumber()
+        end
+
         drawQuiz()
 
         if pd.buttonJustPressed(pd.kButtonA) then
