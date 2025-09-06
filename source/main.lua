@@ -98,6 +98,12 @@ local userAnswer = ""  -- Store what the user selected
 local userWasCorrect = false
 local userPassed = false  -- Track if user passed on this question
 
+-- 🏆 High score tracking
+local highScores = {
+    bestScore = 0,
+    bestTime = math.huge  -- Start with infinity for best time
+}
+
 -- Timer state
 local startTime = 0
 local elapsedTime = 0
@@ -109,6 +115,44 @@ local questionIndex = 1   -- Current index in questionOrder array
 -- Crank handling
 local lastCrankValue = 0
 local crankAccumulator = 0
+
+-- 💾 Save high scores to persistent storage
+local function saveHighScores()
+    pd.datastore.write(highScores, "highscores")
+end
+
+-- 📂 Load high scores from persistent storage
+local function loadHighScores()
+    local savedScores = pd.datastore.read("highscores")
+    if savedScores then
+        highScores = savedScores
+        -- Handle old saves that might not have bestTime
+        if not highScores.bestTime then
+            highScores.bestTime = math.huge
+        end
+    end
+end
+
+-- 🏅 Check if current score is a new high score
+local function isNewHighScore(currentScore, currentTime)
+    if currentScore > highScores.bestScore then
+        return true
+    elseif currentScore == highScores.bestScore and currentTime < highScores.bestTime then
+        return true
+    end
+    return false
+end
+
+-- 🎖️ Update high scores if current score is better
+local function updateHighScoreIfBetter(currentScore, currentTime)
+    if isNewHighScore(currentScore, currentTime) then
+        highScores.bestScore = currentScore
+        highScores.bestTime = currentTime
+        saveHighScores()
+        return true
+    end
+    return false
+end
 
 -- Fisher-Yates shuffle algorithm
 local function shuffleArray(array)
@@ -233,6 +277,10 @@ local function nextQuestion()
         -- Capture final elapsed time when quiz completes
         local currentTime = pd.getCurrentTimeMilliseconds() / 1000
         elapsedTime = currentTime - startTime
+
+        -- Check and update high scores
+        updateHighScoreIfBetter(score, elapsedTime)
+
         gameState = "complete"
         sounds.sessionComplete:play()
     else
@@ -328,21 +376,43 @@ end
 local function drawComplete()
     gfx.clear()
 
-    gfx.drawTextAligned("Quiz Complete!", 200, 50, kTextAlignment.center)
+    -- Check if this is a new high score
+    local isNewBest = isNewHighScore(score, elapsedTime)
+
+    if isNewBest then
+        gfx.drawTextAligned("🎉 NEW HIGH SCORE! 🎉", 200, 30, kTextAlignment.center)
+    else
+        gfx.drawTextAligned("Quiz Complete!", 200, 30, kTextAlignment.center)
+    end
 
     local finalScore = "Final Score: " .. score .. "/52"
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(finalScore, 200, 85, kTextAlignment.center)
+    gfx.drawTextAligned(finalScore, 200, 60, kTextAlignment.center)
     gfx.setFont()
 
     local percentage = math.floor((score / 52) * 100)
-    gfx.drawTextAligned(percentage .. "% correct", 200, 115, kTextAlignment.center)
+    gfx.drawTextAligned(percentage .. "% correct", 200, 85, kTextAlignment.center)
 
     -- Display final time
     local finalTime = "Time: " .. formatTime(elapsedTime)
-    gfx.drawTextAligned(finalTime, 200, 140, kTextAlignment.center)
+    gfx.drawTextAligned(finalTime, 200, 105, kTextAlignment.center)
 
-    gfx.drawTextAligned("(A) Play Again", 200, 180, kTextAlignment.center)
+    -- Display high scores
+    gfx.drawTextAligned("── High Scores ──", 200, 135, kTextAlignment.center)
+
+    local bestScoreText = "Best Score: " .. highScores.bestScore .. "/52"
+    if highScores.bestTime < math.huge then
+        bestScoreText = bestScoreText .. " (" .. formatTime(highScores.bestTime) .. ")"
+    end
+
+    -- Highlight if current score equals or beats the high score
+    if isNewBest then
+        gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    end
+    gfx.drawTextAligned(bestScoreText, 200, 155, kTextAlignment.center)
+    gfx.setFont()
+
+    gfx.drawTextAligned("(A) Play Again", 200, 190, kTextAlignment.center)
 end
 
 function playdate.update()
@@ -378,6 +448,7 @@ end
 
 -- Initialize game
 math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
+loadHighScores()  -- Load saved high scores from persistent storage
 initializeQuestionOrder()  -- Initialize shuffled question order
 lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
 startTime = pd.getCurrentTimeMilliseconds() / 1000  -- Initialize timer
