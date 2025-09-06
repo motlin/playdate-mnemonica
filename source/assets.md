@@ -10,9 +10,9 @@
 - **Layout**: 5 rows × 13 columns sprite sheet (650×350 pixels total)
 - **Card Order**:
   - Row 1: Blank card, jokers, and various card back designs
-  - Row 2: A-K of Spades
+  - Row 2: A-K of Hearts
   - Row 3: A-K of Diamonds
-  - Row 4: A-K of Hearts
+  - Row 4: A-K of Spades
   - Row 5: A-K of Clubs
 
 ### Sound Effects

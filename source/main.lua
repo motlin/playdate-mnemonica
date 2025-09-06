@@ -30,12 +30,12 @@ end
 -- Card lookup mapping (card name to sprite index)
 -- The sprite sheet layout:
 -- Row 1: Blank, Jokers, Card backs (indices 1-13)
--- Row 2: A-K of Spades (indices 14-26)
+-- Row 2: A-K of Hearts (indices 14-26)
 -- Row 3: A-K of Diamonds (indices 27-39)
--- Row 4: A-K of Hearts (indices 40-52)
+-- Row 4: A-K of Spades (indices 40-52)
 -- Row 5: A-K of Clubs (indices 53-65)
 local cardToIndex = {}
-local suits = {"S", "D", "H", "C"}  -- Order matches rows in sprite sheet
+local suits = {"H", "D", "S", "C"}  -- Order matches rows in sprite sheet
 local suitRows = {2, 3, 4, 5}  -- Row numbers for each suit (1-indexed)
 local ranks = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"}
 
