@@ -29,8 +29,9 @@ function NumberDialRenderer:new()
     renderer.numberFont = gfx.getSystemFont(gfx.font.kFontFamilyHeading)
     renderer.smallNumberFont = gfx.getSystemFont()
 
-    -- Performance optimization: cache transform calculations
+    -- Performance optimization: cache transform calculations with size limit
     renderer.transformCache = {}
+    renderer.maxCacheSize = 5  -- Limit cache to prevent memory bloat
     renderer.lastCacheRotation = -999  -- Force initial cache refresh
     renderer.cacheThreshold = 1.0  -- Degrees of rotation change before refreshing cache
 
@@ -191,6 +192,27 @@ function NumberDialRenderer:draw(selectedNumber)
     local numbersToDraw = {}
 
     if shouldRefreshCache then
+        -- Check cache size limit before adding new entry
+        local cacheCount = 0
+        for _ in pairs(self.transformCache) do
+            cacheCount = cacheCount + 1
+        end
+
+        if cacheCount >= self.maxCacheSize then
+            -- Clear oldest cache entries (simple eviction strategy)
+            local keysToRemove = {}
+            local removeCount = 0
+            for key, _ in pairs(self.transformCache) do
+                if removeCount < (cacheCount - self.maxCacheSize + 1) then
+                    table.insert(keysToRemove, key)
+                    removeCount = removeCount + 1
+                end
+            end
+            for _, key in ipairs(keysToRemove) do
+                self.transformCache[key] = nil
+            end
+        end
+
         -- Recalculate transforms and update cache
         self.transformCache[selectedNumber] = {}
         self.lastCacheRotation = self.currentRotation
