@@ -317,6 +317,14 @@ local function drawComplete()
 end
 
 function playdate.update()
+    -- Handle pause state
+    if gameState.isPaused then
+        gfx.clear()
+        gfx.drawTextAligned("PAUSED", 200, 100, kTextAlignment.center)
+        gfx.drawTextAligned("Press Menu to resume", 200, 130, kTextAlignment.center)
+        return
+    end
+
     if gameState.quizState == GameState.QUIZ_STATES.QUESTION then
         updateSelectedCard()
         drawQuiz()
@@ -347,9 +355,34 @@ function playdate.update()
     end
 end
 
+-- Menu callback for pause/resume
+local menu = pd.getSystemMenu()
+
+local function updateMenuItems()
+    menu:removeAllMenuItems()
+
+    if gameState.isPaused then
+        menu:addMenuItem("Resume", function()
+            gameState:resume()
+            updateMenuItems()
+        end)
+    else
+        menu:addMenuItem("Pause", function()
+            gameState:pause()
+            updateMenuItems()
+        end)
+    end
+
+    menu:addMenuItem("Restart Quiz", function()
+        resetGame()
+        updateMenuItems()
+    end)
+end
+
 -- Initialize game
 math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
 gameState:loadHighScores()  -- Load saved high scores from persistent storage
 gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)  -- Start first quiz
 gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]  -- Set first answer
 lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
+updateMenuItems()  -- Set up menu

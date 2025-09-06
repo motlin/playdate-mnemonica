@@ -619,6 +619,9 @@ end
 -- Pause the game
 function GameState:pause()
     self.isPaused = true
+    if self.currentSession then
+        self.currentSession:pauseTimer()
+    end
     self:saveState()
 end
 
@@ -626,7 +629,7 @@ end
 function GameState:resume()
     self.isPaused = false
     if self.currentSession and not self.currentSession.isComplete then
-        -- Session will handle its own time tracking
+        self.currentSession:resumeTimer()
     else
         -- Legacy: Adjust start time to account for pause duration
         local currentTime = pd.getCurrentTimeMilliseconds() / 1000
