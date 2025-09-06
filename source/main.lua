@@ -1,9 +1,14 @@
 import "CoreLibs/graphics"
 import "CoreLibs/ui"
+import "GameState"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
+
+-- Initialize GameState manager
+local GameState = require("GameState")
+local gameState = GameState:new()
 
 -- Load card sprites as a single image
 local cardSpriteSheet = gfx.image.new("images/cards")
@@ -87,99 +92,14 @@ local uspccOrder = {
     "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H", "AH"
 }
 
--- Game state
-local gameState = "quiz" -- "quiz", "feedback", "complete"
-local currentPosition = 1
-local selectedCard = 1 -- Index in uspccOrder (1-52)
-local score = 0
+-- UI state (not managed by GameState)
+local selectedCard = 1 -- Index in uspccOrder (1-52) for crank selection
 local showingCorrectAnswer = false
-local correctAnswer = ""
-local userAnswer = ""  -- Store what the user selected
-local userWasCorrect = false
-local userPassed = false  -- Track if user passed on this question
-
--- 🏆 High score tracking
-local highScores = {
-    bestScore = 0,
-    bestTime = math.huge  -- Start with infinity for best time
-}
-
--- Timer state
-local startTime = 0
-local elapsedTime = 0
-
--- Shuffled question order
-local questionOrder = {}  -- Array of positions 1-52 in random order
-local questionIndex = 1   -- Current index in questionOrder array
 
 -- Crank handling
 local lastCrankValue = 0
 local crankAccumulator = 0
 
--- 💾 Save high scores to persistent storage
-local function saveHighScores()
-    pd.datastore.write(highScores, "highscores")
-end
-
--- 📂 Load high scores from persistent storage
-local function loadHighScores()
-    local savedScores = pd.datastore.read("highscores")
-    if savedScores then
-        highScores = savedScores
-        -- Handle old saves that might not have bestTime
-        if not highScores.bestTime then
-            highScores.bestTime = math.huge
-        end
-    end
-end
-
--- 🏅 Check if current score is a new high score
-local function isNewHighScore(currentScore, currentTime)
-    if currentScore > highScores.bestScore then
-        return true
-    elseif currentScore == highScores.bestScore and currentTime < highScores.bestTime then
-        return true
-    end
-    return false
-end
-
--- 🎖️ Update high scores if current score is better
-local function updateHighScoreIfBetter(currentScore, currentTime)
-    if isNewHighScore(currentScore, currentTime) then
-        highScores.bestScore = currentScore
-        highScores.bestTime = currentTime
-        saveHighScores()
-        return true
-    end
-    return false
-end
-
--- Fisher-Yates shuffle algorithm
-local function shuffleArray(array)
-    local arrayCount = #array
-    for i = arrayCount, 2, -1 do
-        local j = math.random(1, i)
-        array[i], array[j] = array[j], array[i]
-    end
-end
-
--- Initialize shuffled question order
-local function initializeQuestionOrder()
-    questionOrder = {}
-    for i = 1, 52 do
-        questionOrder[i] = i
-    end
-    shuffleArray(questionOrder)
-    questionIndex = 1
-    currentPosition = questionOrder[questionIndex]
-end
-
--- Helper function to format time as MM:SS
-local function formatTime(seconds)
-    local minutes = math.floor(seconds / 60)
-    local secs = math.floor(seconds % 60)
-    return string.format("%d:%02d", minutes, secs)
-end
 
 -- Helper function to get card image from card name
 local function getCardImage(cardName)
@@ -231,88 +151,66 @@ local function updateSelectedCard()
         while selectedCard > 52 do selectedCard = selectedCard - 52 end
 
         -- Play crank tick sound
-        sounds.crankTick:play()
+        if gameState.soundEnabled then sounds.crankTick:play() end
     end
 end
 
 local function checkAnswer()
-    local correctCard = mnemonicaStack[currentPosition]
+    local correctCard = mnemonicaStack[gameState.currentPosition]
     local selectedCardName = uspccOrder[selectedCard]
 
-    userWasCorrect = (selectedCardName == correctCard)
-    correctAnswer = correctCard
-    userAnswer = selectedCardName  -- Store what the user selected
-    userPassed = false
+    gameState.correctAnswer = correctCard
+    gameState:submitAnswer(selectedCardName, false)
     showingCorrectAnswer = true
 
-    if userWasCorrect then
-        score = score + 1
-        sounds.correct:play()
+    if gameState.userWasCorrect then
+        if gameState.soundEnabled then sounds.correct:play() end
     else
-        sounds.incorrect:play()
+        if gameState.soundEnabled then sounds.incorrect:play() end
     end
-
-    gameState = "feedback"
 end
 
 local function passQuestion()
-    local correctCard = mnemonicaStack[currentPosition]
+    local correctCard = mnemonicaStack[gameState.currentPosition]
 
-    userWasCorrect = false
-    correctAnswer = correctCard
-    userAnswer = "PASSED"
-    userPassed = true
+    gameState.correctAnswer = correctCard
+    gameState:submitAnswer("PASSED", true)
     showingCorrectAnswer = true
 
-    sounds.incorrect:play()
-    gameState = "feedback"
+    if gameState.soundEnabled then sounds.incorrect:play() end
 end
 
 local function nextQuestion()
     showingCorrectAnswer = false
-    userPassed = false
-    questionIndex = questionIndex + 1
+    gameState:nextQuestion()
 
-    if questionIndex > 52 then
-        -- Capture final elapsed time when quiz completes
-        local currentTime = pd.getCurrentTimeMilliseconds() / 1000
-        elapsedTime = currentTime - startTime
-
-        -- Check and update high scores
-        updateHighScoreIfBetter(score, elapsedTime)
-
-        gameState = "complete"
-        sounds.sessionComplete:play()
+    if gameState.quizState == GameState.QUIZ_STATES.COMPLETE then
+        if gameState.soundEnabled then sounds.sessionComplete:play() end
     else
-        currentPosition = questionOrder[questionIndex]
-        gameState = "quiz"
+        -- Set correct answer for next question
+        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
     end
 end
 
 local function resetGame()
-    initializeQuestionOrder()  -- Initialize shuffled order
+    gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
+    gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
     selectedCard = 1
-    score = 0
     showingCorrectAnswer = false
-    userPassed = false
-    gameState = "quiz"
     crankAccumulator = 0
     lastCrankValue = pd.getCrankPosition()
-    startTime = pd.getCurrentTimeMilliseconds() / 1000  -- Reset timer
-    elapsedTime = 0
 end
 
 local function drawQuiz()
     gfx.clear()
 
     -- Draw question at top
-    local questionText = "Position " .. currentPosition .. "?"
+    local questionText = "Position " .. gameState.currentPosition .. "?"
     gfx.drawTextAligned(questionText, 200, 10, kTextAlignment.center)
 
     -- Draw timer in top-right corner
-    local currentTime = pd.getCurrentTimeMilliseconds() / 1000
-    elapsedTime = currentTime - startTime
-    local timeText = formatTime(elapsedTime)
+    gameState:updateTimer()
+    local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
     -- Draw selected card at 1x scale (50x70 pixels)
@@ -325,7 +223,7 @@ local function drawQuiz()
     end
 
     -- Draw progress
-    local progressText = "Question " .. questionIndex .. " of 52"
+    local progressText = gameState:getProgressString()
     gfx.drawTextAligned(progressText, 200, 150, kTextAlignment.center)
 
     -- Draw instructions
@@ -338,35 +236,34 @@ local function drawFeedback()
     gfx.clear()
 
     -- Draw timer in top-right corner (keep it visible during feedback)
-    local currentTime = pd.getCurrentTimeMilliseconds() / 1000
-    elapsedTime = currentTime - startTime
-    local timeText = formatTime(elapsedTime)
+    gameState:updateTimer()
+    local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
-    if userWasCorrect then
+    if gameState.userWasCorrect then
         gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
         -- Show the correct card at 1x scale
-        drawCard(correctAnswer, 200, 70, 1)
-    elseif userPassed then
+        drawCard(gameState.correctAnswer, 200, 70, 1)
+    elseif gameState.userPassed then
         gfx.drawTextAligned("You passed!", 200, 10, kTextAlignment.center)
 
         -- Show correct answer
         gfx.drawTextAligned("Correct answer:", 200, 35, kTextAlignment.center)
-        drawCard(correctAnswer, 200, 80, 1)
+        drawCard(gameState.correctAnswer, 200, 80, 1)
     else
         gfx.drawTextAligned("Wrong!", 200, 10, kTextAlignment.center)
 
         -- Show user's wrong answer on the left at 1x scale
         gfx.drawTextAligned("You picked:", 100, 35, kTextAlignment.center)
-        drawCard(userAnswer, 100, 80, 1)
+        drawCard(gameState.userAnswer, 100, 80, 1)
 
         -- Show correct answer on the right at 1x scale
         gfx.drawTextAligned("Correct:", 300, 35, kTextAlignment.center)
-        drawCard(correctAnswer, 300, 80, 1)
+        drawCard(gameState.correctAnswer, 300, 80, 1)
     end
 
     -- Draw score
-    local scoreText = "Score: " .. score .. "/" .. questionIndex
+    local scoreText = "Score: " .. gameState.score .. "/" .. gameState.questionsAnswered
     gfx.drawTextAligned(scoreText, 200, 160, kTextAlignment.center)
 
     -- Draw continue instruction
@@ -377,32 +274,36 @@ local function drawComplete()
     gfx.clear()
 
     -- Check if this is a new high score
-    local isNewBest = isNewHighScore(score, elapsedTime)
+    local isNewBest = gameState:isNewHighScore()
 
     if isNewBest then
-        gfx.drawTextAligned("🎉 NEW HIGH SCORE! 🎉", 200, 30, kTextAlignment.center)
+        gfx.drawTextAligned("NEW HIGH SCORE!", 200, 30, kTextAlignment.center)
     else
         gfx.drawTextAligned("Quiz Complete!", 200, 30, kTextAlignment.center)
     end
 
-    local finalScore = "Final Score: " .. score .. "/52"
+    local finalScore = "Final Score: " .. gameState.score .. "/52"
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned(finalScore, 200, 60, kTextAlignment.center)
     gfx.setFont()
 
-    local percentage = math.floor((score / 52) * 100)
+    local percentage = gameState:getScorePercentage()
     gfx.drawTextAligned(percentage .. "% correct", 200, 85, kTextAlignment.center)
 
     -- Display final time
-    local finalTime = "Time: " .. formatTime(elapsedTime)
+    local finalTime = "Time: " .. gameState:getFormattedTime()
     gfx.drawTextAligned(finalTime, 200, 105, kTextAlignment.center)
 
     -- Display high scores
     gfx.drawTextAligned("── High Scores ──", 200, 135, kTextAlignment.center)
 
-    local bestScoreText = "Best Score: " .. highScores.bestScore .. "/52"
-    if highScores.bestTime < math.huge then
-        bestScoreText = bestScoreText .. " (" .. formatTime(highScores.bestTime) .. ")"
+    local modeScores = gameState:getCurrentModeHighScores()
+    local bestScoreText = "Best Score: " .. modeScores.bestScore .. "/52"
+    if modeScores.bestTime < math.huge then
+        local minutes = math.floor(modeScores.bestTime / 60)
+        local seconds = math.floor(modeScores.bestTime % 60)
+        local bestTimeText = string.format("%d:%02d", minutes, seconds)
+        bestScoreText = bestScoreText .. " (" .. bestTimeText .. ")"
     end
 
     -- Highlight if current score equals or beats the high score
@@ -416,31 +317,31 @@ local function drawComplete()
 end
 
 function playdate.update()
-    if gameState == "quiz" then
+    if gameState.quizState == GameState.QUIZ_STATES.QUESTION then
         updateSelectedCard()
         drawQuiz()
 
         if pd.buttonJustPressed(pd.kButtonA) then
-            sounds.buttonPress:play()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
             checkAnswer()
         elseif pd.buttonJustPressed(pd.kButtonB) then
-            sounds.buttonPress:play()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
             passQuestion()
         end
 
-    elseif gameState == "feedback" then
+    elseif gameState.quizState == GameState.QUIZ_STATES.FEEDBACK then
         drawFeedback()
 
         if pd.buttonJustPressed(pd.kButtonA) then
-            sounds.buttonPress:play()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
             nextQuestion()
         end
 
-    elseif gameState == "complete" then
+    elseif gameState.quizState == GameState.QUIZ_STATES.COMPLETE then
         drawComplete()
 
         if pd.buttonJustPressed(pd.kButtonA) then
-            sounds.buttonPress:play()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
             resetGame()
         end
     end
@@ -448,7 +349,7 @@ end
 
 -- Initialize game
 math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
-loadHighScores()  -- Load saved high scores from persistent storage
-initializeQuestionOrder()  -- Initialize shuffled question order
+gameState:loadHighScores()  -- Load saved high scores from persistent storage
+gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)  -- Start first quiz
+gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]  -- Set first answer
 lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
-startTime = pd.getCurrentTimeMilliseconds() / 1000  -- Initialize timer
