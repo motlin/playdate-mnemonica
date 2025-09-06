@@ -68,6 +68,7 @@ function GameState:new()
     -- Settings
     state.soundEnabled = true
     state.crankSensitivity = 1.0
+    state.lastSelectedMenuMode = 1  -- Remember last selected menu option (1-3)
 
     -- Card statistics for spaced repetition
     -- Each entry tracks performance for a specific card/position pair
@@ -85,6 +86,9 @@ function GameState:new()
 
     -- Load any saved card statistics
     state:loadCardStats()
+
+    -- Load saved settings including last selected menu mode
+    state:loadSettings()
 
     return state
 end
@@ -448,6 +452,26 @@ function GameState:saveHighScores()
     pd.datastore.write(self.highScores, "highscores")
 end
 
+-- Save settings including last selected menu mode
+function GameState:saveSettings()
+    local settings = {
+        soundEnabled = self.soundEnabled,
+        crankSensitivity = self.crankSensitivity,
+        lastSelectedMenuMode = self.lastSelectedMenuMode
+    }
+    pd.datastore.write(settings, "settings")
+end
+
+-- Load settings including last selected menu mode
+function GameState:loadSettings()
+    local settings = pd.datastore.read("settings")
+    if settings then
+        self.soundEnabled = settings.soundEnabled ~= false  -- Default to true
+        self.crankSensitivity = settings.crankSensitivity or 1.0
+        self.lastSelectedMenuMode = settings.lastSelectedMenuMode or 1
+    end
+end
+
 -- Load high scores from persistent storage
 function GameState:loadHighScores()
     local savedScores = pd.datastore.read("highscores")
@@ -483,6 +507,7 @@ function GameState:saveState()
         quizState = self.quizState,
         soundEnabled = self.soundEnabled,
         crankSensitivity = self.crankSensitivity,
+        lastSelectedMenuMode = self.lastSelectedMenuMode,
         selectedAnswer = self.selectedAnswer,
         correctAnswer = self.correctAnswer,
         userAnswer = self.userAnswer,
@@ -520,6 +545,7 @@ function GameState:loadState()
         self.quizState = stateData.quizState
         self.soundEnabled = stateData.soundEnabled
         self.crankSensitivity = stateData.crankSensitivity
+        self.lastSelectedMenuMode = stateData.lastSelectedMenuMode or 1
         self.selectedAnswer = stateData.selectedAnswer
         self.correctAnswer = stateData.correctAnswer
         self.userAnswer = stateData.userAnswer

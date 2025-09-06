@@ -211,6 +211,10 @@ local function startSelectedMode()
 
     local selectedMode = modes[menuSelection]
 
+    -- Save the selected menu mode for next startup
+    gameState.lastSelectedMenuMode = menuSelection
+    gameState:saveSettings()
+
     -- Only Number→Card mode is currently implemented
     if selectedMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         gameState:startQuiz(selectedMode)
@@ -479,6 +483,8 @@ end
 -- Initialize game
 math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
 gameState:loadHighScores()  -- Load saved high scores from persistent storage
+gameState:loadSettings()  -- Load settings including last selected menu mode
+menuSelection = gameState.lastSelectedMenuMode  -- Restore last selected menu item
 gameState.currentMode = GameState.MODES.MENU  -- Start at main menu
 lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
 updateMenuItems()  -- Set up menu
