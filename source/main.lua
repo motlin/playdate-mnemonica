@@ -9,6 +9,7 @@ local snd <const> = playdate.sound
 local GameState = import "GameState"
 local DialRenderer = import "DialRenderer"
 local NumberDialRenderer = import "NumberDialRenderer"
+local MistakeReviewMode = import "MistakeReviewMode"
 
 -- Initialize GameState manager
 local gameState = GameState:new()
@@ -320,17 +321,9 @@ local function resetGame()
 end
 
 local function startMistakeReview()
-    -- Create a review session from mistakes
-    if gameState:createReviewSession() then
-        -- Set correct answer for first question
-        if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-            gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
-            selectedCard = 1
-        elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-            gameState.correctAnswer = tostring(gameState.currentPosition)
-            selectedNumber = 1
-        end
-
+    -- Start the mistake review mode (study phase first)
+    if gameState:startMistakeReview() then
+        -- Reset UI state for study phase
         showingCorrectAnswer = false
         lastCrankPosition = pd.getCrankPosition()
 
@@ -781,6 +774,111 @@ local function drawStudyMode()
     gfx.drawTextAligned(positionText, 200, 220, kTextAlignment.center)
 end
 
+local function drawMistakeReviewComplete()
+    gfx.clear()
+
+    -- Draw title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Mistake Review Complete!", 200, 20, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Get review summary
+    local summary = gameState.mistakeReviewMode:getSummary()
+
+    -- Show study phase summary
+    gfx.drawTextAligned("── Study Phase ──", 200, 50, kTextAlignment.center)
+    gfx.drawTextAligned("Mistakes studied: " .. summary.mistakesReviewed, 200, 70, kTextAlignment.center)
+    local studyMinutes = math.floor(summary.studyTimeTotal / 60)
+    local studySeconds = math.floor(summary.studyTimeTotal % 60)
+    gfx.drawTextAligned(string.format("Study time: %d:%02d", studyMinutes, studySeconds), 200, 85, kTextAlignment.center)
+
+    -- Show quiz phase results
+    gfx.drawTextAligned("── Quiz Results ──", 200, 110, kTextAlignment.center)
+    if summary.quizScore and summary.quizTotal then
+        local scoreText = string.format("Score: %d/%d (%d%%)",
+            summary.quizScore, summary.quizTotal, summary.quizAccuracy or 0)
+        gfx.drawTextAligned(scoreText, 200, 130, kTextAlignment.center)
+
+        -- Show improvement
+        if summary.improvedMistakes and #summary.improvedMistakes > 0 then
+            local improvementRate = math.floor((#summary.improvedMistakes / summary.mistakesReviewed) * 100)
+            gfx.drawTextAligned("Improved: " .. #summary.improvedMistakes .. " cards (" .. improvementRate .. "%)",
+                200, 150, kTextAlignment.center)
+        end
+
+        -- Show remaining mistakes
+        local remainingMistakes = summary.mistakesReviewed - (summary.quizScore or 0)
+        if remainingMistakes > 0 then
+            gfx.drawTextAligned("Still need practice: " .. remainingMistakes .. " cards", 200, 170, kTextAlignment.center)
+        else
+            gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+            gfx.drawTextAligned("Perfect! All mistakes corrected!", 200, 170, kTextAlignment.center)
+            gfx.setFont()
+        end
+    end
+
+    -- Instructions
+    gfx.drawTextAligned("Press A to return to menu", 200, 210, kTextAlignment.center)
+end
+
+local function drawMistakeReviewStudy()
+    gfx.clear()
+
+    -- Get current mistake being studied
+    local mistake = gameState.mistakeReviewMode:getCurrentStudyMistake()
+    if not mistake then
+        return
+    end
+
+    -- Draw title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Mistake Review - Study Phase", 200, 10, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Draw progress
+    local progress = gameState.mistakeReviewMode:getProgress()
+    gfx.drawTextAligned(progress.text, 200, 30, kTextAlignment.center)
+
+    -- Draw the mistake information
+    if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        -- Number → Card mode: Show position and correct card
+        gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+        gfx.drawTextAligned("Position " .. mistake.position, 200, 60, kTextAlignment.center)
+        gfx.setFont()
+
+        -- Draw the correct card
+        drawCard(mistake.correctAnswer, 200, 110, 1)
+
+        -- Show what the user answered incorrectly
+        if mistake.userAnswer == "PASSED" then
+            gfx.drawTextAligned("You passed on this one", 200, 170, kTextAlignment.center)
+        else
+            gfx.drawTextAligned("You answered: " .. mistake.userAnswer, 200, 170, kTextAlignment.center)
+        end
+    else
+        -- Card → Number mode: Show card and correct position
+        local cardName = mnemonicaStack[mistake.position]
+
+        -- Draw the card
+        drawCard(cardName, 200, 60, 1)
+
+        gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+        gfx.drawTextAligned("Position " .. mistake.position, 200, 130, kTextAlignment.center)
+        gfx.setFont()
+
+        -- Show what the user answered incorrectly
+        if mistake.userAnswer == "PASSED" then
+            gfx.drawTextAligned("You passed on this one", 200, 170, kTextAlignment.center)
+        else
+            gfx.drawTextAligned("You answered: Position " .. mistake.userAnswer, 200, 170, kTextAlignment.center)
+        end
+    end
+
+    -- Draw instructions
+    gfx.drawTextAligned("Study this card, then press A to continue", 200, 200, kTextAlignment.center)
+    gfx.drawTextAligned("B: Previous • A: Next", 200, 220, kTextAlignment.center)
+end
+
 local function drawMenu()
     gfx.clear()
 
@@ -827,7 +925,79 @@ function playdate.update()
         return
     end
 
-    if gameState.currentMode == GameState.MODES.MENU then
+    if gameState.currentMode == GameState.MODES.MISTAKE_REVIEW then
+        -- Handle mistake review mode
+        if gameState.mistakeReviewMode then
+            if gameState.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.STUDY then
+                -- Study phase - show mistake cards for review
+                drawMistakeReviewStudy()
+
+                if pd.buttonJustPressed(pd.kButtonA) then
+                    if gameState.soundEnabled then sounds.buttonPress:play() end
+
+                    -- Move to next study card
+                    if not gameState.mistakeReviewMode:nextStudyCard() then
+                        -- Study phase complete, check if we're transitioning to quiz
+                        if gameState.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.QUIZ then
+                            -- Transition to quiz phase
+                            gameState:transitionToMistakeQuiz()
+
+                            -- Set correct answer for first question
+                            if gameState.currentMode == GameState.MODES.MISTAKE_REVIEW then
+                                if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+                                    gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+                                    selectedCard = 1
+                                else
+                                    gameState.correctAnswer = tostring(gameState.currentPosition)
+                                    selectedNumber = 1
+                                end
+                            end
+                        end
+                    end
+                elseif pd.buttonJustPressed(pd.kButtonB) then
+                    if gameState.soundEnabled then sounds.buttonPress:play() end
+                    gameState.mistakeReviewMode:previousStudyCard()
+                end
+            elseif gameState.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.QUIZ then
+                -- Quiz phase - handle like normal quiz but check for completion
+                if gameState.quizState == GameState.QUIZ_STATES.QUESTION then
+                    -- Update the appropriate selection based on original quiz mode
+                    if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+                        updateSelectedCard()
+                        drawQuizNumberToCard()
+                    else
+                        updateSelectedNumber()
+                        drawQuizCardToNumber()
+                    end
+
+                    if pd.buttonJustPressed(pd.kButtonA) then
+                        if gameState.soundEnabled then sounds.buttonPress:play() end
+                        checkAnswer()
+                    elseif pd.buttonJustPressed(pd.kButtonB) then
+                        if gameState.soundEnabled then sounds.buttonPress:play() end
+                        passQuestion()
+                    end
+                elseif gameState.quizState == GameState.QUIZ_STATES.FEEDBACK then
+                    drawFeedback()
+
+                    if pd.buttonJustPressed(pd.kButtonA) then
+                        if gameState.soundEnabled then sounds.buttonPress:play() end
+                        nextQuestion()
+                    end
+                elseif gameState.quizState == GameState.QUIZ_STATES.COMPLETE then
+                    -- Show review completion screen
+                    drawMistakeReviewComplete()
+
+                    if pd.buttonJustPressed(pd.kButtonA) then
+                        if gameState.soundEnabled then sounds.buttonPress:play() end
+                        -- Return to main menu
+                        gameState.currentMode = GameState.MODES.MENU
+                        gameState.mistakeReviewMode = nil
+                    end
+                end
+            end
+        end
+    elseif gameState.currentMode == GameState.MODES.MENU then
         drawMenu()
 
         -- Handle menu navigation
