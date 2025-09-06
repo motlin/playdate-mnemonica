@@ -19,3 +19,6 @@ run: build
 # 🧹 Clean build artifacts
 clean:
     rm -rf "{{output_dir}}"
+
+# ✅ Pre-commit checks
+precommit: build
