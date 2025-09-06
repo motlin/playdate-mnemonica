@@ -403,6 +403,11 @@ local function drawQuizNumberToCard()
     local progressText = gameState:getProgressString()
     gfx.drawTextAligned(progressText, 200, 200, kTextAlignment.center)
 
+    -- Draw spaced repetition indicator if active
+    if gameState.usingSpacedRepetition then
+        gfx.drawTextAligned("[Smart Mode]" , 200, 185, kTextAlignment.center)
+    end
+
     -- Draw instructions
     gfx.drawTextAligned("Crank: Select • A: Confirm • B: Pass", 200, 220, kTextAlignment.center)
 end
@@ -441,6 +446,11 @@ local function drawQuizCardToNumber()
     -- Draw progress at bottom
     local progressText = gameState:getProgressString()
     gfx.drawTextAligned(progressText, 200, 200, kTextAlignment.center)
+
+    -- Draw spaced repetition indicator if active
+    if gameState.usingSpacedRepetition then
+        gfx.drawTextAligned("[Smart Mode]" , 200, 185, kTextAlignment.center)
+    end
 
     -- Draw instructions
     gfx.drawTextAligned("Crank: Select • A: Confirm • B: Pass", 200, 220, kTextAlignment.center)
