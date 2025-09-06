@@ -36,6 +36,7 @@ function GameState:new()
     -- Current quiz session
     state.currentSession = nil  -- Will be initialized when quiz starts
     state.originalSession = nil  -- Preserve original session during mistake review
+    state.usingSpacedRepetition = false  -- Track if current session uses spaced repetition
 
     -- Mistake review mode
     state.mistakeReviewMode = nil  -- Will be initialized when starting mistake review
@@ -99,19 +100,37 @@ function GameState:new()
 end
 
 -- Start a new quiz session
-function GameState:startQuiz(mode)
+function GameState:startQuiz(mode, useSpacedRepetition)
     self.currentMode = mode or GameState.MODES.QUIZ_NUMBER_TO_CARD
     self.quizState = GameState.QUIZ_STATES.QUESTION
 
     -- Create new quiz session
     self.currentSession = QuizSession:new(self.currentMode, 52)
 
-    -- Initialize questions with shuffled order
+    -- Initialize questions with appropriate order
     local positions = {}
-    for i = 1, 52 do
-        positions[i] = i
+
+    -- Use spaced repetition if enabled and we have enough data
+    if useSpacedRepetition == nil then
+        useSpacedRepetition = true  -- Default to using spaced repetition
     end
-    self.currentSession:initializeQuestions(positions, true)  -- true = shuffle
+
+    if useSpacedRepetition and self:hasEnoughDataForSpacedRepetition() then
+        -- Get spaced repetition order
+        self:initializeSpacedRepetitionOrder()
+        for i = 1, 52 do
+            positions[i] = self.questionOrder[i]
+        end
+        self.currentSession:initializeQuestions(positions, false)  -- false = don't shuffle again
+        self.usingSpacedRepetition = true
+    else
+        -- Use simple random shuffling
+        for i = 1, 52 do
+            positions[i] = i
+        end
+        self.currentSession:initializeQuestions(positions, true)  -- true = shuffle
+        self.usingSpacedRepetition = false
+    end
 
     -- Update legacy fields for compatibility
     self:syncLegacyFields()
@@ -196,6 +215,7 @@ function GameState:hasEnoughDataForSpacedRepetition()
 end
 
 -- Initialize question order using spaced repetition algorithm
+-- This prioritizes cards the user struggles with while maintaining some randomness
 function GameState:initializeSpacedRepetitionOrder()
     -- Create weighted pool based on difficulty and time since last asked
     local weightedPool = {}
