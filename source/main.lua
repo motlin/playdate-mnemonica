@@ -312,6 +312,33 @@ local function resetGame()
 
     showingCorrectAnswer = false
     lastCrankPosition = pd.getCrankPosition()
+
+    -- Reset completion screen state
+    completionScreenState.showingMistakes = false
+    completionScreenState.mistakeScrollOffset = 0
+    completionScreenState.selectedOption = 1
+end
+
+local function startMistakeReview()
+    -- Create a review session from mistakes
+    if gameState:createReviewSession() then
+        -- Set correct answer for first question
+        if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+            gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+            selectedCard = 1
+        elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+            gameState.correctAnswer = tostring(gameState.currentPosition)
+            selectedNumber = 1
+        end
+
+        showingCorrectAnswer = false
+        lastCrankPosition = pd.getCrankPosition()
+
+        -- Reset completion screen state
+        completionScreenState.showingMistakes = false
+        completionScreenState.mistakeScrollOffset = 0
+        completionScreenState.selectedOption = 1
+    end
 end
 
 local function startSelectedMode()
@@ -503,55 +530,168 @@ local function drawFeedback()
     gfx.drawTextAligned("(A) Continue", 200, 200, kTextAlignment.center)
 end
 
+-- UI state for completion screen
+local completionScreenState = {
+    showingMistakes = false,
+    mistakeScrollOffset = 0,
+    selectedOption = 1  -- 1=Play Again, 2=Review Mistakes, 3=Main Menu
+}
+
 local function drawComplete()
     gfx.clear()
 
+    if completionScreenState.showingMistakes then
+        -- Draw mistakes list view
+        drawMistakesList()
+    else
+        -- Draw main completion summary
+        drawCompletionSummary()
+    end
+end
+
+local function drawCompletionSummary()
     -- Check if this is a new high score
     local isNewBest = gameState:isNewHighScore()
 
+    -- Title
+    local titleY = 10
     if isNewBest then
         gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-        gfx.drawTextAligned("NEW HIGH SCORE!", 200, 30, kTextAlignment.center)
+        gfx.drawTextAligned("NEW HIGH SCORE!", 200, titleY, kTextAlignment.center)
         gfx.setFont()
     else
         gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-        gfx.drawTextAligned("Quiz Complete!", 200, 30, kTextAlignment.center)
+        gfx.drawTextAligned("Quiz Complete!", 200, titleY, kTextAlignment.center)
         gfx.setFont()
     end
 
-    local finalScore = "Final Score: " .. gameState.score .. "/52"
+    -- Score and time
+    local finalScore = "Score: " .. gameState.score .. "/52"
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(finalScore, 200, 60, kTextAlignment.center)
+    gfx.drawTextAligned(finalScore, 200, 35, kTextAlignment.center)
     gfx.setFont()
 
     local percentage = gameState:getScorePercentage()
-    gfx.drawTextAligned(percentage .. "% correct", 200, 85, kTextAlignment.center)
+    gfx.drawTextAligned(percentage .. "% correct", 200, 55, kTextAlignment.center)
 
-    -- Display final time
     local finalTime = "Time: " .. gameState:getFormattedTime()
-    gfx.drawTextAligned(finalTime, 200, 105, kTextAlignment.center)
+    gfx.drawTextAligned(finalTime, 200, 70, kTextAlignment.center)
 
-    -- Display high scores
-    gfx.drawTextAligned("── High Scores ──", 200, 135, kTextAlignment.center)
+    -- Mistakes summary
+    local numMistakes = #gameState.mistakes
+    if numMistakes > 0 then
+        gfx.drawTextAligned("── Mistakes: " .. numMistakes .. " ──", 200, 95, kTextAlignment.center)
 
-    local modeScores = gameState:getCurrentModeHighScores()
-    local bestScoreText = "Best Score: " .. modeScores.bestScore .. "/52"
-    if modeScores.bestTime < math.huge then
-        local minutes = math.floor(modeScores.bestTime / 60)
-        local seconds = math.floor(modeScores.bestTime % 60)
-        local bestTimeText = string.format("%d:%02d", minutes, seconds)
-        bestScoreText = bestScoreText .. " (" .. bestTimeText .. ")"
+        -- Show first few mistakes as preview
+        local previewCount = math.min(3, numMistakes)
+        for i = 1, previewCount do
+            local mistake = gameState.mistakes[i]
+            local mistakeText = "Pos " .. mistake.position .. ": " .. mistake.correctAnswer
+            if mistake.userAnswer == "PASSED" then
+                mistakeText = mistakeText .. " (passed)"
+            else
+                mistakeText = mistakeText .. " (you: " .. mistake.userAnswer .. ")"
+            end
+            gfx.drawText(mistakeText, 40, 95 + (i * 15))
+        end
+
+        if numMistakes > 3 then
+            gfx.drawTextAligned("... and " .. (numMistakes - 3) .. " more", 200, 95 + (4 * 15), kTextAlignment.center)
+        end
+    else
+        gfx.drawTextAligned("── Perfect Score! ──", 200, 95, kTextAlignment.center)
     end
 
-    -- Highlight if current score equals or beats the high score
-    if isNewBest then
-        gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    -- Menu options
+    local menuY = 170
+    local menuOptions = {
+        "Play Again",
+        numMistakes > 0 and "Review Mistakes" or nil,
+        "Main Menu"
+    }
+
+    -- Filter out nil options and adjust selection
+    local displayOptions = {}
+    for _, option in ipairs(menuOptions) do
+        if option then
+            table.insert(displayOptions, option)
+        end
     end
-    gfx.drawTextAligned(bestScoreText, 200, 155, kTextAlignment.center)
+
+    -- Ensure selected option is valid
+    if completionScreenState.selectedOption > #displayOptions then
+        completionScreenState.selectedOption = 1
+    end
+
+    for i, option in ipairs(displayOptions) do
+        local y = menuY + ((i - 1) * 20)
+        if i == completionScreenState.selectedOption then
+            -- Highlight selected option
+            gfx.setColor(gfx.kColorBlack)
+            gfx.fillRoundRect(100, y - 3, 200, 18, 3)
+            gfx.setColor(gfx.kColorWhite)
+            gfx.drawTextAligned(option, 200, y, kTextAlignment.center)
+            gfx.setColor(gfx.kColorBlack)
+        else
+            gfx.drawTextAligned(option, 200, y, kTextAlignment.center)
+        end
+    end
+
+    -- Instructions
+    gfx.drawTextAligned("↑↓: Select • A: Confirm", 200, 220, kTextAlignment.center)
+end
+
+local function drawMistakesList()
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Mistakes Review", 200, 10, kTextAlignment.center)
     gfx.setFont()
 
-    gfx.drawTextAligned("(A) Play Again", 200, 190, kTextAlignment.center)
-    gfx.drawTextAligned("(B) Main Menu", 200, 205, kTextAlignment.center)
+    local numMistakes = #gameState.mistakes
+    gfx.drawTextAligned("Total: " .. numMistakes .. " mistakes", 200, 30, kTextAlignment.center)
+
+    -- Draw mistakes list with scrolling support
+    local startY = 50
+    local lineHeight = 18
+    local maxVisibleLines = 9  -- How many mistakes fit on screen
+
+    for i = 1, math.min(numMistakes, maxVisibleLines) do
+        local mistakeIndex = i + completionScreenState.mistakeScrollOffset
+        if mistakeIndex <= numMistakes then
+            local mistake = gameState.mistakes[mistakeIndex]
+            local y = startY + ((i - 1) * lineHeight)
+
+            -- Position and correct answer
+            local posText = "Pos " .. mistake.position .. ":"
+            gfx.drawText(posText, 20, y)
+
+            -- Draw the correct card (if Number→Card mode)
+            if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+                gfx.drawText(mistake.correctAnswer, 80, y)
+            else
+                -- Card→Number mode
+                local cardName = mnemonicaStack[mistake.position]
+                gfx.drawText(cardName .. " → " .. mistake.position, 80, y)
+            end
+
+            -- Show what user answered
+            if mistake.userAnswer == "PASSED" then
+                gfx.drawTextAligned("(passed)", 380, y, kTextAlignment.right)
+            else
+                gfx.drawTextAligned("(you: " .. mistake.userAnswer .. ")", 380, y, kTextAlignment.right)
+            end
+        end
+    end
+
+    -- Scroll indicators
+    if completionScreenState.mistakeScrollOffset > 0 then
+        gfx.drawTextAligned("↑ more", 200, startY - 10, kTextAlignment.center)
+    end
+    if completionScreenState.mistakeScrollOffset + maxVisibleLines < numMistakes then
+        gfx.drawTextAligned("↓ more", 200, startY + (maxVisibleLines * lineHeight), kTextAlignment.center)
+    end
+
+    -- Instructions
+    gfx.drawTextAligned("B: Back • A: Start Review Quiz", 200, 220, kTextAlignment.center)
 end
 
 local function updateStudyModePosition()
@@ -763,13 +903,68 @@ function playdate.update()
     elseif gameState.quizState == GameState.QUIZ_STATES.COMPLETE then
         drawComplete()
 
-        if pd.buttonJustPressed(pd.kButtonA) then
-            if gameState.soundEnabled then sounds.buttonPress:play() end
-            resetGame()
-        elseif pd.buttonJustPressed(pd.kButtonB) then
-            if gameState.soundEnabled then sounds.buttonPress:play() end
-            -- Return to main menu
-            gameState.currentMode = GameState.MODES.MENU
+        if completionScreenState.showingMistakes then
+            -- Mistakes list view controls
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                completionScreenState.mistakeScrollOffset = math.max(0, completionScreenState.mistakeScrollOffset - 1)
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                local maxOffset = math.max(0, #gameState.mistakes - 9)  -- 9 visible lines
+                completionScreenState.mistakeScrollOffset = math.min(maxOffset, completionScreenState.mistakeScrollOffset + 1)
+            elseif pd.buttonJustPressed(pd.kButtonA) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                -- Start review quiz with mistakes
+                startMistakeReview()
+            elseif pd.buttonJustPressed(pd.kButtonB) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                -- Go back to summary
+                completionScreenState.showingMistakes = false
+                completionScreenState.mistakeScrollOffset = 0
+            end
+        else
+            -- Main completion screen controls
+            local numOptions = #gameState.mistakes > 0 and 3 or 2  -- 3 options if mistakes, 2 if perfect
+
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                completionScreenState.selectedOption = completionScreenState.selectedOption - 1
+                if completionScreenState.selectedOption < 1 then
+                    completionScreenState.selectedOption = numOptions
+                end
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                completionScreenState.selectedOption = completionScreenState.selectedOption + 1
+                if completionScreenState.selectedOption > numOptions then
+                    completionScreenState.selectedOption = 1
+                end
+            elseif pd.buttonJustPressed(pd.kButtonA) then
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+
+                if #gameState.mistakes > 0 then
+                    -- With mistakes: 1=Play Again, 2=Review, 3=Menu
+                    if completionScreenState.selectedOption == 1 then
+                        resetGame()
+                        completionScreenState.selectedOption = 1  -- Reset for next time
+                    elseif completionScreenState.selectedOption == 2 then
+                        -- Show mistakes list
+                        completionScreenState.showingMistakes = true
+                        completionScreenState.mistakeScrollOffset = 0
+                    else
+                        gameState.currentMode = GameState.MODES.MENU
+                        completionScreenState.selectedOption = 1  -- Reset for next time
+                    end
+                else
+                    -- No mistakes: 1=Play Again, 2=Menu
+                    if completionScreenState.selectedOption == 1 then
+                        resetGame()
+                        completionScreenState.selectedOption = 1  -- Reset for next time
+                    else
+                        gameState.currentMode = GameState.MODES.MENU
+                        completionScreenState.selectedOption = 1  -- Reset for next time
+                    end
+                end
+            end
         end
     end
 end
