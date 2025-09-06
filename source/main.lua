@@ -4,12 +4,12 @@ import "CoreLibs/ui"
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
--- Load card sprites as a single image and create imagetable manually
+-- Load card sprites as a single image
 local cardSpriteSheet = gfx.image.new("images/cards")
 assert(cardSpriteSheet, "Failed to load card sprite sheet")
 
--- Create imagetable from sprite sheet (32x32 pixels per card, 14 columns, 4 rows)
-local cardImageTable = gfx.imagetable.new(14, 4)
+-- Store individual card images in a table
+local cardImages = {}
 local cardWidth, cardHeight = 32, 32
 
 -- Extract individual card images from the sprite sheet
@@ -22,7 +22,7 @@ for row = 1, 4 do
         cardSpriteSheet:draw(-x, -y)
         gfx.popContext()
         local index = (row - 1) * 14 + col
-        cardImageTable:setImage(index, cardImage)
+        cardImages[index] = cardImage
     end
 end
 
@@ -85,7 +85,7 @@ local crankAccumulator = 0
 local function getCardImage(cardName)
     local index = cardToIndex[cardName]
     if index then
-        return cardImageTable:getImage(index)
+        return cardImages[index]
     end
     return nil
 end
