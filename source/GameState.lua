@@ -3,6 +3,7 @@
 
 local pd <const> = playdate
 local QuizSession = import "QuizSession"
+local MistakeReviewMode = import "MistakeReviewMode"
 
 local GameState = {}
 GameState.__index = GameState
@@ -12,7 +13,8 @@ GameState.MODES = {
     QUIZ_NUMBER_TO_CARD = "quiz_number_to_card",
     QUIZ_CARD_TO_NUMBER = "quiz_card_to_number",
     STUDY = "study",
-    MENU = "menu"
+    MENU = "menu",
+    MISTAKE_REVIEW = "mistake_review"  -- New mode for mistake review
 }
 
 -- Quiz states
@@ -33,6 +35,9 @@ function GameState:new()
 
     -- Current quiz session
     state.currentSession = nil  -- Will be initialized when quiz starts
+
+    -- Mistake review mode
+    state.mistakeReviewMode = nil  -- Will be initialized when starting mistake review
 
     -- UI state (temporary, not part of session)
     state.selectedAnswer = 1  -- Currently selected answer (card index or position)
@@ -662,14 +667,46 @@ function GameState:resume()
     end
 end
 
--- Create a review session from current session's mistakes
-function GameState:createReviewSession()
+-- Start mistake review mode
+function GameState:startMistakeReview()
     if self.currentSession and self.currentSession:hasMistakes() then
-        -- Create review session
-        local reviewSession = self.currentSession:createReviewSession()
-        if reviewSession then
-            -- Replace current session with review session
-            self.currentSession = reviewSession
+        -- Get the mistakes from the current session
+        local mistakes = self.currentSession.mistakes
+        local originalMode = self.currentSession.mode
+
+        -- Create the mistake review mode
+        self.mistakeReviewMode = MistakeReviewMode:new(mistakes, originalMode)
+
+        -- Switch to mistake review mode
+        self.currentMode = GameState.MODES.MISTAKE_REVIEW
+
+        -- Reset UI state
+        self.selectedAnswer = 1
+        self.correctAnswer = ""
+        self.userAnswer = ""
+        self.userWasCorrect = false
+        self.userPassed = false
+
+        return true
+    end
+    return false
+end
+
+-- Create a review session from current session's mistakes (legacy support)
+function GameState:createReviewSession()
+    -- This now uses the new mistake review system
+    return self:startMistakeReview()
+end
+
+-- Transition from study phase to quiz phase in mistake review
+function GameState:transitionToMistakeQuiz()
+    if self.mistakeReviewMode and
+       self.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.STUDY then
+        -- Start the quiz phase
+        local quizSession = self.mistakeReviewMode:startQuizPhase()
+        if quizSession then
+            -- Replace current session with the review quiz session
+            self.currentSession = quizSession
             self.quizState = GameState.QUIZ_STATES.QUESTION
 
             -- Sync legacy fields
