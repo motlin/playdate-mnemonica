@@ -3,10 +3,25 @@ import "CoreLibs/ui"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
+local snd <const> = playdate.sound
 
 -- Load card sprites as a single image
 local cardSpriteSheet = gfx.image.new("images/cards")
 assert(cardSpriteSheet, "Failed to load card sprite sheet")
+
+-- Load sound effects
+local sounds = {}
+sounds.crankTick = snd.sampleplayer.new("sounds/crank_tick")
+sounds.buttonPress = snd.sampleplayer.new("sounds/button_press")
+sounds.correct = snd.sampleplayer.new("sounds/correct")
+sounds.incorrect = snd.sampleplayer.new("sounds/incorrect")
+sounds.sessionComplete = snd.sampleplayer.new("sounds/session_complete")
+
+assert(sounds.crankTick, "Failed to load crank_tick.wav")
+assert(sounds.buttonPress, "Failed to load button_press.wav")
+assert(sounds.correct, "Failed to load correct.wav")
+assert(sounds.incorrect, "Failed to load incorrect.wav")
+assert(sounds.sessionComplete, "Failed to load session_complete.wav")
 
 -- Store individual card images in a table
 local cardImages = {}
@@ -81,10 +96,35 @@ local showingCorrectAnswer = false
 local correctAnswer = ""
 local userAnswer = ""  -- Store what the user selected
 local userWasCorrect = false
+local userPassed = false  -- Track if user passed on this question
+
+-- Shuffled question order
+local questionOrder = {}  -- Array of positions 1-52 in random order
+local questionIndex = 1   -- Current index in questionOrder array
 
 -- Crank handling
 local lastCrankValue = 0
 local crankAccumulator = 0
+
+-- Fisher-Yates shuffle algorithm
+local function shuffleArray(array)
+    local arrayCount = #array
+    for i = arrayCount, 2, -1 do
+        local j = math.random(1, i)
+        array[i], array[j] = array[j], array[i]
+    end
+end
+
+-- Initialize shuffled question order
+local function initializeQuestionOrder()
+    questionOrder = {}
+    for i = 1, 52 do
+        questionOrder[i] = i
+    end
+    shuffleArray(questionOrder)
+    questionIndex = 1
+    currentPosition = questionOrder[questionIndex]
+end
 
 -- Helper function to get card image from card name
 local function getCardImage(cardName)
@@ -134,6 +174,9 @@ local function updateSelectedCard()
         -- Wrap around
         while selectedCard < 1 do selectedCard = selectedCard + 52 end
         while selectedCard > 52 do selectedCard = selectedCard - 52 end
+
+        -- Play crank tick sound
+        sounds.crankTick:play()
     end
 end
 
@@ -144,31 +187,52 @@ local function checkAnswer()
     userWasCorrect = (selectedCardName == correctCard)
     correctAnswer = correctCard
     userAnswer = selectedCardName  -- Store what the user selected
+    userPassed = false
     showingCorrectAnswer = true
 
     if userWasCorrect then
         score = score + 1
+        sounds.correct:play()
+    else
+        sounds.incorrect:play()
     end
 
     gameState = "feedback"
 end
 
+local function passQuestion()
+    local correctCard = mnemonicaStack[currentPosition]
+
+    userWasCorrect = false
+    correctAnswer = correctCard
+    userAnswer = "PASSED"
+    userPassed = true
+    showingCorrectAnswer = true
+
+    sounds.incorrect:play()
+    gameState = "feedback"
+end
+
 local function nextQuestion()
     showingCorrectAnswer = false
-    currentPosition = currentPosition + 1
+    userPassed = false
+    questionIndex = questionIndex + 1
 
-    if currentPosition > 52 then
+    if questionIndex > 52 then
         gameState = "complete"
+        sounds.sessionComplete:play()
     else
+        currentPosition = questionOrder[questionIndex]
         gameState = "quiz"
     end
 end
 
 local function resetGame()
-    currentPosition = 1
+    initializeQuestionOrder()  -- Initialize shuffled order
     selectedCard = 1
     score = 0
     showingCorrectAnswer = false
+    userPassed = false
     gameState = "quiz"
     crankAccumulator = 0
     lastCrankValue = pd.getCrankPosition()
@@ -191,12 +255,13 @@ local function drawQuiz()
     end
 
     -- Draw progress
-    local progressText = "Question " .. currentPosition .. " of 52"
+    local progressText = "Question " .. questionIndex .. " of 52"
     gfx.drawTextAligned(progressText, 200, 150, kTextAlignment.center)
 
     -- Draw instructions
-    gfx.drawTextAligned("Use crank to select card", 200, 195, kTextAlignment.center)
-    gfx.drawTextAligned("(A) Confirm answer", 200, 210, kTextAlignment.center)
+    gfx.drawTextAligned("Use crank to select card", 200, 185, kTextAlignment.center)
+    gfx.drawTextAligned("(A) Confirm answer", 200, 200, kTextAlignment.center)
+    gfx.drawTextAligned("(B) Pass/Skip question", 200, 215, kTextAlignment.center)
 end
 
 local function drawFeedback()
@@ -206,6 +271,12 @@ local function drawFeedback()
         gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
         -- Show the correct card at 1x scale
         drawCard(correctAnswer, 200, 70, 1)
+    elseif userPassed then
+        gfx.drawTextAligned("You passed!", 200, 10, kTextAlignment.center)
+
+        -- Show correct answer
+        gfx.drawTextAligned("Correct answer:", 200, 35, kTextAlignment.center)
+        drawCard(correctAnswer, 200, 80, 1)
     else
         gfx.drawTextAligned("Wrong!", 200, 10, kTextAlignment.center)
 
@@ -219,7 +290,7 @@ local function drawFeedback()
     end
 
     -- Draw score
-    local scoreText = "Score: " .. score .. "/" .. (currentPosition)
+    local scoreText = "Score: " .. score .. "/" .. questionIndex
     gfx.drawTextAligned(scoreText, 200, 160, kTextAlignment.center)
 
     -- Draw continue instruction
@@ -248,13 +319,18 @@ function playdate.update()
         drawQuiz()
 
         if pd.buttonJustPressed(pd.kButtonA) then
+            sounds.buttonPress:play()
             checkAnswer()
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            sounds.buttonPress:play()
+            passQuestion()
         end
 
     elseif gameState == "feedback" then
         drawFeedback()
 
         if pd.buttonJustPressed(pd.kButtonA) then
+            sounds.buttonPress:play()
             nextQuestion()
         end
 
@@ -262,10 +338,13 @@ function playdate.update()
         drawComplete()
 
         if pd.buttonJustPressed(pd.kButtonA) then
+            sounds.buttonPress:play()
             resetGame()
         end
     end
 end
 
--- Initialize crank position
-lastCrankValue = pd.getCrankPosition()
+-- Initialize game
+math.randomseed(pd.getSecondsSinceEpoch())  -- Seed random number generator
+initializeQuestionOrder()  -- Initialize shuffled question order
+lastCrankValue = pd.getCrankPosition()  -- Initialize crank position
