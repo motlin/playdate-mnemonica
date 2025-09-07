@@ -16,9 +16,9 @@ function NumberDialRenderer:new()
     renderer.radius = 80     -- Distance from center to number positions
 
     -- Visual configuration
-    renderer.selectedScale = 1.8    -- Selected number is 80% larger
-    renderer.minScale = 0.6         -- Minimum scale for distant numbers
-    renderer.maxVisibleNumbers = 11 -- Number of numbers visible in the dial
+    renderer.selectedScale = 2.0    -- Selected number is 100% larger
+    renderer.minScale = 0.4         -- Minimum scale for distant numbers
+    renderer.maxVisibleNumbers = 5  -- Number of numbers visible in the dial (reduced for clarity)
 
     -- Animation state
     renderer.currentRotation = 0    -- Current rotation angle of the dial
@@ -88,32 +88,40 @@ function NumberDialRenderer:getNumberTransform(numberIndex, selectedNumber)
     -- Convert to radians for trigonometry
     local radians = math.rad(numberAngle)
 
-    -- Calculate position on an elliptical path
-    -- Use ellipse to create depth effect (numbers at bottom appear further away)
-    local ellipseWidthRatio = 1.0   -- Horizontal radius multiplier
-    local ellipseHeightRatio = 0.6  -- Vertical radius multiplier (squashed for perspective)
+    -- Calculate position on a circular path (simplified for clarity)
+    -- Numbers arranged in a vertical wheel like a slot machine
+    local x = self.centerX
 
-    local x = self.centerX + math.sin(radians) * self.radius * ellipseWidthRatio
-    local y = self.centerY + math.cos(radians) * self.radius * ellipseHeightRatio
+    -- Position numbers vertically based on their angle
+    -- The selected number should be at centerY
+    local verticalSpacing = 40  -- Space between numbers
+    local angleFromTop = numberAngle
+    if angleFromTop > 180 then
+        angleFromTop = angleFromTop - 360
+    end
 
-    -- Calculate scale based on vertical position (numbers at top are larger)
-    -- Use cosine for smooth scaling (1 at top, -1 at bottom)
-    local depthFactor = (math.cos(radians) + 1) / 2  -- Normalize to 0-1 range
-    local scale = self.minScale + (self.selectedScale - self.minScale) * depthFactor
+    -- Map angle to vertical position (-180 to 180 degrees -> multiple positions)
+    local verticalOffset = (angleFromTop / degreesPerNumber) * verticalSpacing
+    local y = self.centerY + verticalOffset
+
+    -- Calculate scale based on distance from center
+    local distanceFromCenter = math.abs(verticalOffset)
+    local maxDistance = verticalSpacing * 2.5
+    local scaleFactor = 1.0 - (distanceFromCenter / maxDistance)
+    scaleFactor = math.max(0, math.min(1, scaleFactor))  -- Clamp to 0-1
+
+    local scale = self.minScale + (self.selectedScale - self.minScale) * scaleFactor
 
     -- Extra emphasis on the selected number
     if numberIndex == selectedNumber then
-        scale = scale * 1.2  -- Make selected number even more prominent
-        -- Slight position adjustment to pull selected number forward
-        y = y - 10
+        scale = self.selectedScale
+        x = self.centerX  -- Keep centered
     end
 
-    -- Calculate opacity/visibility based on position
-    -- Numbers at the back (bottom) should be dimmer
-    -- Increased minimum opacity for better contrast on 1-bit display
-    local opacity = 0.6 + (depthFactor * 0.4)  -- Range from 0.6 to 1.0
+    -- Calculate opacity based on distance from selected
+    local opacity = scaleFactor
 
-    -- Determine if number should be visible (limit number of visible numbers)
+    -- Determine if number should be visible (limit to numbers close to selected)
     local distanceFromSelected = math.abs(numberIndex - selectedNumber)
 
     -- Handle wrap-around distance
@@ -121,10 +129,11 @@ function NumberDialRenderer:getNumberTransform(numberIndex, selectedNumber)
         distanceFromSelected = 52 - distanceFromSelected
     end
 
-    local isVisible = distanceFromSelected <= math.floor(self.maxVisibleNumbers / 2)
+    -- Only show numbers within 2 positions of selected
+    local isVisible = distanceFromSelected <= 2
 
-    -- Calculate draw order (numbers at back should be drawn first)
-    local drawOrder = -math.cos(radians)  -- -1 to 1, where -1 is back, 1 is front
+    -- Calculate draw order (numbers further from center should be drawn first)
+    local drawOrder = -distanceFromCenter
 
     return {
         x = x,
@@ -261,131 +270,37 @@ end
 
 -- Draw visual indicator for the selected number
 function NumberDialRenderer:drawSelectionIndicator(selectedNumber)
-    -- Get position of selected number (should be at top)
-    local transform = self:getNumberTransform(selectedNumber, selectedNumber)
+    -- Draw simple selection box around the selected number
+    local boxWidth = 60
+    local boxHeight = 35
 
-    -- Draw pointing arrows on both sides
-    local arrowOffset = 35
-    local arrowSize = 8
-
-    -- Left arrow pointing right
     gfx.setLineWidth(2)
-    gfx.drawLine(
-        transform.x - arrowOffset,
-        transform.y,
-        transform.x - arrowOffset + arrowSize,
-        transform.y - arrowSize
-    )
-    gfx.drawLine(
-        transform.x - arrowOffset,
-        transform.y,
-        transform.x - arrowOffset + arrowSize,
-        transform.y + arrowSize
-    )
-
-    -- Right arrow pointing left
-    gfx.drawLine(
-        transform.x + arrowOffset,
-        transform.y,
-        transform.x + arrowOffset - arrowSize,
-        transform.y - arrowSize
-    )
-    gfx.drawLine(
-        transform.x + arrowOffset,
-        transform.y,
-        transform.x + arrowOffset - arrowSize,
-        transform.y + arrowSize
+    gfx.drawRect(
+        self.centerX - boxWidth / 2,
+        self.centerY - boxHeight / 2,
+        boxWidth,
+        boxHeight
     )
     gfx.setLineWidth(1)
 end
 
 -- Draw position indicator showing which number is selected
 function NumberDialRenderer:drawPositionIndicator(selectedNumber)
-    -- Draw dots or tick marks around the dial perimeter
-    local indicatorRadius = self.radius + 30
-    local dotSize = 2
-
-    -- Draw small dots for a subset of number positions to avoid clutter
-    -- Show dots for every 4th number, plus numbers adjacent to selected
-    for i = 1, 52 do
-        local shouldShowDot = false
-
-        -- Show dot for selected number
-        if i == selectedNumber then
-            shouldShowDot = true
-        -- Show dots for numbers adjacent to selected
-        elseif math.abs(i - selectedNumber) <= 2 or
-               math.abs(i - selectedNumber) >= 50 then  -- Handle wrap-around
-            shouldShowDot = true
-        -- Show dots for every 13th number (quarters of 52)
-        elseif i % 13 == 1 then
-            shouldShowDot = true
-        end
-
-        if shouldShowDot then
-            local degreesPerNumber = 360 / 52
-            local angle = (i - 1) * degreesPerNumber + self.currentRotation
-            local radians = math.rad(angle)
-
-            local x = self.centerX + math.sin(radians) * indicatorRadius
-            local y = self.centerY + math.cos(radians) * indicatorRadius * 0.6
-
-            if i == selectedNumber then
-                -- Larger dot for selected position
-                gfx.fillCircleAtPoint(x, y, dotSize * 2)
-            else
-                -- Smaller dots for other positions
-                gfx.fillCircleAtPoint(x, y, dotSize)
-            end
-        end
-    end
+    -- Skip drawing position dots to reduce clutter
+    -- The selection box is enough to indicate the selected number
 end
 
 -- Draw dial frame/background
 function NumberDialRenderer:drawFrame()
-    -- Draw solid circular guide for better contrast
+    -- Keep frame minimal - just draw vertical lines to suggest a slot machine
     gfx.setLineWidth(1)
-    -- Use solid line instead of dithered pattern for better visibility
-    local width = (self.radius + 20) * 2
-    local height = (self.radius + 20) * 0.6 * 2
-    gfx.drawEllipseInRect(
-        self.centerX - width / 2,
-        self.centerY - height / 2,
-        width,
-        height
-    )
 
-    -- Draw number range indicators at cardinal points
-    gfx.setFont()
+    -- Draw vertical guide lines on sides
+    local lineX1 = self.centerX - 40
+    local lineX2 = self.centerX + 40
 
-    -- Draw number range indicators with white background for better readability
-    -- Top indicator
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(self.centerX - 20, 15, 40, 15)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.drawRect(self.centerX - 20, 15, 40, 15)
-    gfx.drawTextAligned("1-13", self.centerX, 18, kTextAlignment.center)
-
-    -- Right indicator
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(self.centerX + 80, self.centerY - 7, 45, 15)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.drawRect(self.centerX + 80, self.centerY - 7, 45, 15)
-    gfx.drawTextAligned("14-26", self.centerX + 102, self.centerY - 4, kTextAlignment.center)
-
-    -- Bottom indicator
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(self.centerX - 20, 195, 45, 15)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.drawRect(self.centerX - 20, 195, 45, 15)
-    gfx.drawTextAligned("27-39", self.centerX, 198, kTextAlignment.center)
-
-    -- Left indicator
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(self.centerX - 125, self.centerY - 7, 45, 15)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.drawRect(self.centerX - 125, self.centerY - 7, 45, 15)
-    gfx.drawTextAligned("40-52", self.centerX - 102, self.centerY - 4, kTextAlignment.center)
+    gfx.drawLine(lineX1, 40, lineX1, 200)
+    gfx.drawLine(lineX2, 40, lineX2, 200)
 end
 
 return NumberDialRenderer
