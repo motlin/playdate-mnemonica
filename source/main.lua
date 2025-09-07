@@ -22,6 +22,10 @@ local numberDialRenderer = nil
 local cardSpriteSheet = gfx.image.new("images/cards")
 assert(cardSpriteSheet, "Failed to load card sprite sheet")
 
+-- Load custom fonts
+local marbleMadnessFont = gfx.font.new("fonts/MarbleMadness")
+assert(marbleMadnessFont, "Failed to load Marble Madness font")
+
 -- Load sound effects
 local sounds = {}
 sounds.crankTick = snd.sampleplayer.new("sounds/crank_tick")
@@ -404,6 +408,7 @@ local function startSelectedMode()
         GameState.MODES.QUIZ_NUMBER_TO_CARD,
         GameState.MODES.QUIZ_CARD_TO_NUMBER,
         GameState.MODES.STUDY,
+        GameState.MODES.HIGH_SCORES,
         GameState.MODES.SETTINGS
     }
 
@@ -431,6 +436,9 @@ local function startSelectedMode()
         gameState.currentMode = GameState.MODES.STUDY
         studyModePosition = 1
         lastCrankPosition = pd.getCrankPosition()
+    elseif selectedMode == GameState.MODES.HIGH_SCORES then
+        -- High scores screen
+        gameState.currentMode = GameState.MODES.HIGH_SCORES
     else
         -- Settings mode
         gameState.currentMode = GameState.MODES.SETTINGS
@@ -484,14 +492,14 @@ end
 local function drawQuizCardToNumber()
     gfx.clear()
 
-    -- Draw question card at top with bold text
+    -- Draw question text at top with bold text
     local questionCard = mnemonicaStack[gameState.currentPosition]
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned("What position is this card?", 200, 10, kTextAlignment.center)
     gfx.setFont()
 
-    -- Draw the question card
-    drawCard(questionCard, 200, 70, 1)
+    -- Draw the question card on the LEFT side
+    drawCard(questionCard, 80, 100, 1)
 
     -- Draw timer in top-right corner
     gameState:updateTimer()
@@ -983,6 +991,52 @@ local function drawMistakeReviewStudy()
     gfx.drawTextAligned("B: Previous | A: Next", 200, 220, kTextAlignment.center)
 end
 
+local function drawHighScores()
+    gfx.clear()
+
+    -- Draw title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("High Scores", 200, 20, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Number to Card Quiz section
+    gfx.drawTextAligned("-- Number to Card Quiz --", 200, 60, kTextAlignment.center)
+    local numberToCardScores = gameState.highScores.numberToCard
+    if numberToCardScores.bestScore > 0 then
+        local scoreText = "Best Score: " .. numberToCardScores.bestScore .. "/52"
+        gfx.drawTextAligned(scoreText, 200, 80, kTextAlignment.center)
+
+        if numberToCardScores.bestTime < math.huge then
+            local minutes = math.floor(numberToCardScores.bestTime / 60)
+            local seconds = math.floor(numberToCardScores.bestTime % 60)
+            local timeText = string.format("Best Time: %d:%02d", minutes, seconds)
+            gfx.drawTextAligned(timeText, 200, 100, kTextAlignment.center)
+        end
+    else
+        gfx.drawTextAligned("No scores yet", 200, 80, kTextAlignment.center)
+    end
+
+    -- Card to Number Quiz section
+    gfx.drawTextAligned("-- Card to Number Quiz --", 200, 130, kTextAlignment.center)
+    local cardToNumberScores = gameState.highScores.cardToNumber
+    if cardToNumberScores.bestScore > 0 then
+        local scoreText = "Best Score: " .. cardToNumberScores.bestScore .. "/52"
+        gfx.drawTextAligned(scoreText, 200, 150, kTextAlignment.center)
+
+        if cardToNumberScores.bestTime < math.huge then
+            local minutes = math.floor(cardToNumberScores.bestTime / 60)
+            local seconds = math.floor(cardToNumberScores.bestTime % 60)
+            local timeText = string.format("Best Time: %d:%02d", minutes, seconds)
+            gfx.drawTextAligned(timeText, 200, 170, kTextAlignment.center)
+        end
+    else
+        gfx.drawTextAligned("No scores yet", 200, 150, kTextAlignment.center)
+    end
+
+    -- Instructions
+    gfx.drawTextAligned("Press (B) to return to menu", 200, 210, kTextAlignment.center)
+end
+
 local function drawSettings()
     gfx.clear()
 
@@ -1044,7 +1098,7 @@ local function drawCredits()
     gfx.drawText("free-for-your-card-game/994", 50, 215)
 
     -- Instructions
-    gfx.drawTextAligned("Press B to return", 200, 235, kTextAlignment.center)
+    gfx.drawTextAligned("Press B to return", 200, 230, kTextAlignment.center)
 end
 
 local function updateMenuSelectionWithCrank()
@@ -1090,8 +1144,8 @@ local function updateMenuSelectionWithCrank()
     local newSelection = math.floor(floatMenu)
 
     -- Wrap around menu items
-    if newSelection > 4 then newSelection = 1 end
-    if newSelection < 1 then newSelection = 1 end
+    if newSelection > 5 then newSelection = 1 end
+    if newSelection < 1 then newSelection = 5 end
 
     -- Check if selection changed to play sound effect
     if newSelection ~= menuSelection then
@@ -1105,65 +1159,43 @@ end
 local function drawMenu()
     gfx.clear()
 
-    -- Draw title
+    -- Draw title with more spacing
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Mnemonica Stack", 200, 20, kTextAlignment.center)
-    gfx.drawTextAligned("Memorizer", 200, 40, kTextAlignment.center)
-    gfx.setFont()
-
-    -- Draw high scores section
-    gfx.drawTextAligned("-- High Scores --", 200, 65, kTextAlignment.center)
-
-    -- Number to Card high score
-    local numberToCardScores = gameState.highScores.numberToCard
-    local numberToCardText = "Number to Card: "
-    if numberToCardScores.bestScore > 0 then
-        numberToCardText = numberToCardText .. numberToCardScores.bestScore .. "/52"
-        if numberToCardScores.bestTime < math.huge then
-            local minutes = math.floor(numberToCardScores.bestTime / 60)
-            local seconds = math.floor(numberToCardScores.bestTime % 60)
-            numberToCardText = numberToCardText .. string.format(" (%d:%02d)", minutes, seconds)
-        end
-    else
-        numberToCardText = numberToCardText .. "No scores yet"
-    end
-    gfx.drawTextAligned(numberToCardText, 200, 80, kTextAlignment.center)
-
-    -- Card to Number high score
-    local cardToNumberScores = gameState.highScores.cardToNumber
-    local cardToNumberText = "Card to Number: "
-    if cardToNumberScores.bestScore > 0 then
-        cardToNumberText = cardToNumberText .. cardToNumberScores.bestScore .. "/52"
-        if cardToNumberScores.bestTime < math.huge then
-            local minutes = math.floor(cardToNumberScores.bestTime / 60)
-            local seconds = math.floor(cardToNumberScores.bestTime % 60)
-            cardToNumberText = cardToNumberText .. string.format(" (%d:%02d)", minutes, seconds)
-        end
-    else
-        cardToNumberText = cardToNumberText .. "No scores yet"
-    end
-    gfx.drawTextAligned(cardToNumberText, 200, 95, kTextAlignment.center)
+    gfx.drawTextAligned("Mnemonica Stack", 200, 25, kTextAlignment.center)
+    gfx.drawTextAligned("Memorizer", 200, 45, kTextAlignment.center)
 
     -- Menu options
     local menuItems = {
         "Number to Card Quiz",
         "Card to Number Quiz",
         "Study Mode",
+        "High Scores",
         "Settings"
     }
 
-    -- Draw menu items with selection indicator (adjusted y positions to account for high scores)
+    -- Set font for menu items
+    gfx.setFont(marbleMadnessFont)
+
+    -- Draw menu items with selection indicator
     for i, item in ipairs(menuItems) do
-        local y = 120 + (i - 1) * 25
+        local y = 80 + (i - 1) * 25  -- Better vertical spacing
 
         if i == menuSelection then
-            -- Draw selection box
+            -- Draw selection box first
             gfx.setColor(gfx.kColorBlack)
-            gfx.fillRoundRect(60, y - 3, 280, 21, 3)
+            gfx.fillRoundRect(50, y - 3, 300, 20, 3)
+
+            -- Draw arrows on clean background
+            gfx.setColor(gfx.kColorBlack)
+            gfx.drawText(">", 35, y - 1)
+            gfx.drawText("<", 365, y - 1)
+
+            -- Draw selected text in white on black background
             gfx.setColor(gfx.kColorWhite)
             gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
             gfx.setColor(gfx.kColorBlack)
         else
+            -- Draw unselected text normally
             gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
         end
     end
@@ -1173,7 +1205,8 @@ local function drawMenu()
         pd.ui.crankIndicator:draw()
     end
 
-    -- Draw instructions
+    -- Draw instructions with default font
+    gfx.setFont()  -- Reset to default font for instructions
     gfx.drawTextAligned("Crank or D-pad to select", 200, 210, kTextAlignment.center)
     gfx.drawTextAligned("(A) Start selected mode", 200, 225, kTextAlignment.center)
 end
@@ -1288,11 +1321,11 @@ function playdate.update()
         if pd.buttonJustPressed(pd.kButtonUp) then
             if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection - 1
-            if menuSelection < 1 then menuSelection = 4 end
+            if menuSelection < 1 then menuSelection = 5 end
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection + 1
-            if menuSelection > 4 then menuSelection = 1 end
+            if menuSelection > 5 then menuSelection = 1 end
         elseif pd.buttonJustPressed(pd.kButtonA) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             startSelectedMode()
@@ -1323,6 +1356,15 @@ function playdate.update()
         end
 
         -- Handle B button to return to menu
+        if pd.buttonJustPressed(pd.kButtonB) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.currentMode = GameState.MODES.MENU
+        end
+
+    elseif gameState.currentMode == GameState.MODES.HIGH_SCORES then
+        -- High scores screen
+        drawHighScores()
+
         if pd.buttonJustPressed(pd.kButtonB) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             gameState.currentMode = GameState.MODES.MENU
