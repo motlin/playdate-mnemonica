@@ -150,7 +150,7 @@ local uspccOrder = {
 
 -- UI state (not managed by GameState)
 local selectedCard = 1 -- Index in uspccOrder (1-52) for crank selection
-local selectedNumber = 1 -- Selected position number (1-52) for Card→Number quiz
+local selectedNumber = 1 -- Selected position number (1-52) for Card to Number quiz
 local showingCorrectAnswer = false
 local menuSelection = 1 -- Currently selected menu item (1-4)
 local settingsSelection = 1 -- Currently selected settings item
@@ -306,7 +306,7 @@ end
 
 local function checkAnswer()
     if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-        -- Number → Card mode: Check if selected card matches the position
+        -- Number to Card mode: Check if selected card matches the position
         local correctCard = mnemonicaStack[gameState.currentPosition]
         local selectedCardName = uspccOrder[selectedCard]
 
@@ -314,7 +314,7 @@ local function checkAnswer()
         gameState:submitAnswer(selectedCardName, false)
         showingCorrectAnswer = true
     elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-        -- Card → Number mode: Check if selected number matches the card's position
+        -- Card to Number mode: Check if selected number matches the card's position
         local correctPosition = gameState.currentPosition
 
         gameState.correctAnswer = tostring(correctPosition)
@@ -363,7 +363,7 @@ local function resetGame()
     -- Keep the current mode when resetting
     local mode = gameState.currentMode
     if mode == GameState.MODES.MENU then
-        mode = GameState.MODES.QUIZ_NUMBER_TO_CARD  -- Default to Number→Card
+        mode = GameState.MODES.QUIZ_NUMBER_TO_CARD  -- Default to Number to Card
     end
 
     gameState:startQuiz(mode)
@@ -478,7 +478,7 @@ local function drawQuizNumberToCard()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Crank: Select • A: Confirm • B: Pass", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Pass", 200, 220, kTextAlignment.center)
 end
 
 local function drawQuizCardToNumber()
@@ -522,7 +522,7 @@ local function drawQuizCardToNumber()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Crank: Select • A: Confirm • B: Pass", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Pass", 200, 220, kTextAlignment.center)
 end
 
 local function drawQuiz()
@@ -542,7 +542,7 @@ local function drawFeedback()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
     if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-        -- Number → Card mode feedback
+        -- Number to Card mode feedback
         if gameState.userWasCorrect then
             gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
@@ -571,7 +571,7 @@ local function drawFeedback()
             drawCard(gameState.correctAnswer, 300, 80, 1)
         end
     elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-        -- Card → Number mode feedback
+        -- Card to Number mode feedback
         local questionCard = mnemonicaStack[gameState.currentPosition]
 
         -- Show the card being questioned
@@ -654,7 +654,7 @@ local function drawCompletionSummary()
     -- Show high score comparison
     local currentModeScores = gameState:getCurrentModeHighScores()
     if not isNewBest and currentModeScores.bestScore > 0 then
-        gfx.drawTextAligned("── Previous Best ──", 200, 90, kTextAlignment.center)
+        gfx.drawTextAligned("-- Previous Best --", 200, 90, kTextAlignment.center)
         local bestScoreText = "Best: " .. currentModeScores.bestScore .. "/52"
         if currentModeScores.bestTime < math.huge then
             local bestMinutes = math.floor(currentModeScores.bestTime / 60)
@@ -668,7 +668,7 @@ local function drawCompletionSummary()
     local mistakesSectionY = isNewBest and 95 or (currentModeScores.bestScore > 0 and 120 or 95)
     local numMistakes = #gameState.mistakes
     if numMistakes > 0 then
-        gfx.drawTextAligned("── Mistakes: " .. numMistakes .. " ──", 200, mistakesSectionY, kTextAlignment.center)
+        gfx.drawTextAligned("-- Mistakes: " .. numMistakes .. " --", 200, mistakesSectionY, kTextAlignment.center)
 
         -- Show first few mistakes as preview
         local previewCount = math.min(3, numMistakes)
@@ -687,7 +687,7 @@ local function drawCompletionSummary()
             gfx.drawTextAligned("... and " .. (numMistakes - 3) .. " more", 200, mistakesSectionY + (4 * 15), kTextAlignment.center)
         end
     else
-        gfx.drawTextAligned("── Perfect Score! ──", 200, mistakesSectionY, kTextAlignment.center)
+        gfx.drawTextAligned("-- Perfect Score! --", 200, mistakesSectionY, kTextAlignment.center)
     end
 
     -- Menu options (adjust Y position based on content above)
@@ -726,7 +726,7 @@ local function drawCompletionSummary()
     end
 
     -- Instructions
-    gfx.drawTextAligned("↑↓: Select • A: Confirm", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Up/Down: Select | A: Confirm", 200, 220, kTextAlignment.center)
 end
 
 local function drawMistakesList()
@@ -752,13 +752,13 @@ local function drawMistakesList()
             local posText = "Pos " .. mistake.position .. ":"
             gfx.drawText(posText, 20, y)
 
-            -- Draw the correct card (if Number→Card mode)
+            -- Draw the correct card (if Number to Card mode)
             if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
                 gfx.drawText(mistake.correctAnswer, 80, y)
             else
-                -- Card→Number mode
+                -- Card to Number mode
                 local cardName = mnemonicaStack[mistake.position]
-                gfx.drawText(cardName .. " → " .. mistake.position, 80, y)
+                gfx.drawText(cardName .. " -> " .. mistake.position, 80, y)
             end
 
             -- Show what user answered
@@ -772,14 +772,14 @@ local function drawMistakesList()
 
     -- Scroll indicators
     if completionScreenState.mistakeScrollOffset > 0 then
-        gfx.drawTextAligned("↑ more", 200, startY - 10, kTextAlignment.center)
+        gfx.drawTextAligned("^ more", 200, startY - 10, kTextAlignment.center)
     end
     if completionScreenState.mistakeScrollOffset + maxVisibleLines < numMistakes then
-        gfx.drawTextAligned("↓ more", 200, startY + (maxVisibleLines * lineHeight), kTextAlignment.center)
+        gfx.drawTextAligned("v more", 200, startY + (maxVisibleLines * lineHeight), kTextAlignment.center)
     end
 
     -- Instructions
-    gfx.drawTextAligned("B: Back • A: Start Review Quiz", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("B: Back | A: Start Review Quiz", 200, 220, kTextAlignment.center)
 end
 
 local function updateStudyModePosition()
@@ -859,10 +859,10 @@ local function drawStudyMode()
     drawCard(cardAtPosition, 200, 100, 1)
 
     -- Draw both directions of the mapping
-    gfx.drawTextAligned("Position " .. studyModePosition .. " → " .. cardAtPosition, 200, 150, kTextAlignment.center)
+    gfx.drawTextAligned("Position " .. studyModePosition .. " -> " .. cardAtPosition, 200, 150, kTextAlignment.center)
 
     -- Find this card's position (for verification)
-    local verifyText = cardAtPosition .. " → Position " .. studyModePosition
+    local verifyText = cardAtPosition .. " -> Position " .. studyModePosition
     gfx.drawTextAligned(verifyText, 200, 170, kTextAlignment.center)
 
     -- Draw crank indicator if docked
@@ -871,7 +871,7 @@ local function drawStudyMode()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Crank: Browse • ←→: ±1 • ↑↓: ±10 • B: Menu", 200, 200, kTextAlignment.center)
+    gfx.drawTextAligned("Crank: Browse | Left/Right: +/-1 | Up/Down: +/-10 | B: Menu", 200, 200, kTextAlignment.center)
 
     -- Draw position indicator
     local positionText = studyModePosition .. " / 52"
@@ -890,14 +890,14 @@ local function drawMistakeReviewComplete()
     local summary = gameState.mistakeReviewMode:getSummary()
 
     -- Show study phase summary
-    gfx.drawTextAligned("── Study Phase ──", 200, 50, kTextAlignment.center)
+    gfx.drawTextAligned("-- Study Phase --", 200, 50, kTextAlignment.center)
     gfx.drawTextAligned("Mistakes studied: " .. summary.mistakesReviewed, 200, 70, kTextAlignment.center)
     local studyMinutes = math.floor(summary.studyTimeTotal / 60)
     local studySeconds = math.floor(summary.studyTimeTotal % 60)
     gfx.drawTextAligned(string.format("Study time: %d:%02d", studyMinutes, studySeconds), 200, 85, kTextAlignment.center)
 
     -- Show quiz phase results
-    gfx.drawTextAligned("── Quiz Results ──", 200, 110, kTextAlignment.center)
+    gfx.drawTextAligned("-- Quiz Results --", 200, 110, kTextAlignment.center)
     if summary.quizScore and summary.quizTotal then
         local scoreText = string.format("Score: %d/%d (%d%%)",
             summary.quizScore, summary.quizTotal, summary.quizAccuracy or 0)
@@ -945,7 +945,7 @@ local function drawMistakeReviewStudy()
 
     -- Draw the mistake information
     if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-        -- Number → Card mode: Show position and correct card
+        -- Number to Card mode: Show position and correct card
         gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
         gfx.drawTextAligned("Position " .. mistake.position, 200, 60, kTextAlignment.center)
         gfx.setFont()
@@ -960,7 +960,7 @@ local function drawMistakeReviewStudy()
             gfx.drawTextAligned("You answered: " .. mistake.userAnswer, 200, 170, kTextAlignment.center)
         end
     else
-        -- Card → Number mode: Show card and correct position
+        -- Card to Number mode: Show card and correct position
         local cardName = mnemonicaStack[mistake.position]
 
         -- Draw the card
@@ -980,7 +980,7 @@ local function drawMistakeReviewStudy()
 
     -- Draw instructions
     gfx.drawTextAligned("Study this card, then press A to continue", 200, 200, kTextAlignment.center)
-    gfx.drawTextAligned("B: Previous • A: Next", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("B: Previous | A: Next", 200, 220, kTextAlignment.center)
 end
 
 local function drawSettings()
@@ -1018,8 +1018,8 @@ local function drawSettings()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("↑↓: Select • A: Confirm", 200, 205, kTextAlignment.center)
-    gfx.drawTextAligned("←→: Adjust values • B: Back", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Up/Down: Select | A: Confirm", 200, 205, kTextAlignment.center)
+    gfx.drawTextAligned("Left/Right: Adjust values | B: Back", 200, 220, kTextAlignment.center)
 end
 
 local function drawCredits()
@@ -1034,10 +1034,10 @@ local function drawCredits()
     gfx.drawTextAligned("Mnemonica Stack Memorizer", 200, 50, kTextAlignment.center)
     gfx.drawTextAligned("for Playdate", 200, 70, kTextAlignment.center)
 
-    gfx.drawTextAligned("── Created by ──", 200, 100, kTextAlignment.center)
+    gfx.drawTextAligned("-- Created by --", 200, 100, kTextAlignment.center)
     gfx.drawTextAligned("Mr. Poopybutthole", 200, 120, kTextAlignment.center)
 
-    gfx.drawTextAligned("── Playing Card Assets ──", 200, 150, kTextAlignment.center)
+    gfx.drawTextAligned("-- Playing Card Assets --", 200, 150, kTextAlignment.center)
     gfx.drawText("Free playing cards from:", 50, 170)
     gfx.drawText("devforum.play.date/t/", 50, 185)
     gfx.drawText("playing-card-deck-imagetable-", 50, 200)
@@ -1112,11 +1112,11 @@ local function drawMenu()
     gfx.setFont()
 
     -- Draw high scores section
-    gfx.drawTextAligned("── High Scores ──", 200, 65, kTextAlignment.center)
+    gfx.drawTextAligned("-- High Scores --", 200, 65, kTextAlignment.center)
 
-    -- Number → Card high score
+    -- Number to Card high score
     local numberToCardScores = gameState.highScores.numberToCard
-    local numberToCardText = "Number → Card: "
+    local numberToCardText = "Number to Card: "
     if numberToCardScores.bestScore > 0 then
         numberToCardText = numberToCardText .. numberToCardScores.bestScore .. "/52"
         if numberToCardScores.bestTime < math.huge then
@@ -1129,9 +1129,9 @@ local function drawMenu()
     end
     gfx.drawTextAligned(numberToCardText, 200, 80, kTextAlignment.center)
 
-    -- Card → Number high score
+    -- Card to Number high score
     local cardToNumberScores = gameState.highScores.cardToNumber
-    local cardToNumberText = "Card → Number: "
+    local cardToNumberText = "Card to Number: "
     if cardToNumberScores.bestScore > 0 then
         cardToNumberText = cardToNumberText .. cardToNumberScores.bestScore .. "/52"
         if cardToNumberScores.bestTime < math.huge then
@@ -1146,8 +1146,8 @@ local function drawMenu()
 
     -- Menu options
     local menuItems = {
-        "Number → Card Quiz",
-        "Card → Number Quiz",
+        "Number to Card Quiz",
+        "Card to Number Quiz",
         "Study Mode",
         "Settings"
     }
