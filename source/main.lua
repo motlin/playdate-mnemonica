@@ -491,7 +491,7 @@ local function drawQuizCardToNumber()
     gfx.setFont()
 
     -- Draw the question card
-    drawCard(questionCard, 200, 50, 1)
+    drawCard(questionCard, 200, 70, 1)
 
     -- Draw timer in top-right corner
     gameState:updateTimer()
@@ -856,14 +856,14 @@ local function drawStudyMode()
     gfx.setFont()
 
     -- Draw the card at 1x scale
-    drawCard(cardAtPosition, 200, 90, 1)
+    drawCard(cardAtPosition, 200, 100, 1)
 
     -- Draw both directions of the mapping
-    gfx.drawTextAligned("Position " .. studyModePosition .. " → " .. cardAtPosition, 200, 140, kTextAlignment.center)
+    gfx.drawTextAligned("Position " .. studyModePosition .. " → " .. cardAtPosition, 200, 150, kTextAlignment.center)
 
     -- Find this card's position (for verification)
     local verifyText = cardAtPosition .. " → Position " .. studyModePosition
-    gfx.drawTextAligned(verifyText, 200, 160, kTextAlignment.center)
+    gfx.drawTextAligned(verifyText, 200, 170, kTextAlignment.center)
 
     -- Draw crank indicator if docked
     if pd.isCrankDocked() then
@@ -1047,6 +1047,61 @@ local function drawCredits()
     gfx.drawTextAligned("Press B to return", 200, 235, kTextAlignment.center)
 end
 
+local function updateMenuSelectionWithCrank()
+    local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
+
+    -- Only process if crank position has changed significantly
+    if math.abs(crankPosition - lastCrankPosition) < 0.5 then
+        return  -- No significant change, skip processing
+    end
+
+    -- Calculate crank velocity for smooth feel
+    local delta = crankPosition - lastCrankPosition
+    -- Handle wrap-around at 0/360 boundary
+    if delta > 180 then
+        delta = delta - 360
+    elseif delta < -180 then
+        delta = delta + 360
+    end
+    crankVelocity = delta
+
+    -- Map crank position to menu items (4 items total)
+    local degreesPerItem = 360 / 4
+    local effectiveDegreesPerItem = degreesPerItem / gameState.crankSensitivity
+
+    -- Map crank position to a floating point menu position
+    local floatMenu = (crankPosition / effectiveDegreesPerItem) + 1
+
+    -- Add subtle snap behavior when crank is moving slowly
+    local snapThreshold = 0.35
+    local velocityThreshold = 3
+
+    if math.abs(crankVelocity) < velocityThreshold then
+        -- When moving slowly, snap to nearest menu item
+        local nearestItem = math.floor(floatMenu + 0.5)
+        local distanceToNearest = math.abs(floatMenu - nearestItem)
+
+        if distanceToNearest < snapThreshold then
+            floatMenu = nearestItem
+        end
+    end
+
+    -- Convert to integer menu position
+    local newSelection = math.floor(floatMenu)
+
+    -- Wrap around menu items
+    if newSelection > 4 then newSelection = 1 end
+    if newSelection < 1 then newSelection = 1 end
+
+    -- Check if selection changed to play sound effect
+    if newSelection ~= menuSelection then
+        menuSelection = newSelection
+        if gameState.soundEnabled then sounds.menuMove:play() end
+    end
+
+    lastCrankPosition = crankPosition
+end
+
 local function drawMenu()
     gfx.clear()
 
@@ -1113,8 +1168,13 @@ local function drawMenu()
         end
     end
 
+    -- Draw crank indicator if docked
+    if pd.isCrankDocked() then
+        pd.ui.crankIndicator:draw()
+    end
+
     -- Draw instructions
-    gfx.drawTextAligned("Use D-pad to select", 200, 210, kTextAlignment.center)
+    gfx.drawTextAligned("Crank or D-pad to select", 200, 210, kTextAlignment.center)
     gfx.drawTextAligned("(A) Start selected mode", 200, 225, kTextAlignment.center)
 end
 
@@ -1219,6 +1279,9 @@ function playdate.update()
             end
         end
     elseif gameState.currentMode == GameState.MODES.MENU then
+        -- Update menu selection with crank
+        updateMenuSelectionWithCrank()
+
         drawMenu()
 
         -- Handle menu navigation
