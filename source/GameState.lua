@@ -306,12 +306,19 @@ end
 -- Submit an answer
 function GameState:submitAnswer(answer, passed)
     self.userAnswer = answer
-    self.userPassed = passed or false
+
+    -- Explicitly handle the passed parameter
+    if passed == true then
+        self.userPassed = true
+        self.userWasCorrect = false
+    else
+        self.userPassed = false
+        self.userWasCorrect = (answer == self.correctAnswer)
+    end
 
     -- Record answer in session
     if self.currentSession then
         self.currentSession:recordAnswer(answer, self.correctAnswer, passed)
-        self.userWasCorrect = not passed and (answer == self.correctAnswer)
 
         -- Update card statistics
         local question = self.currentSession:getCurrentQuestion()
@@ -327,11 +334,8 @@ function GameState:submitAnswer(answer, passed)
 
         if passed then
             self.questionsPassed = self.questionsPassed + 1
-            self.userWasCorrect = false
             self:updateCardStats(self.currentPosition, false)
         else
-            self.userWasCorrect = (answer == self.correctAnswer)
-
             if self.userWasCorrect then
                 self.score = self.score + 1
                 self.questionsCorrect = self.questionsCorrect + 1
