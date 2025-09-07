@@ -332,11 +332,13 @@ function DialRenderer:drawFrame()
     -- Draw solid circular guide for better contrast
     gfx.setLineWidth(1)
     -- Use solid line instead of dithered pattern for better visibility
-    gfx.drawEllipseAtPoint(
-        self.centerX,
-        self.centerY,
-        self.radius + 20,
-        (self.radius + 20) * 0.6
+    local width = (self.radius + 20) * 2
+    local height = (self.radius + 20) * 0.6 * 2
+    gfx.drawEllipseInRect(
+        self.centerX - width / 2,
+        self.centerY - height / 2,
+        width,
+        height
     )
 end
 
