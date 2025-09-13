@@ -14,6 +14,7 @@ GameState.MODES = {
     QUIZ_CARD_TO_NUMBER = "quiz_card_to_number",
     STUDY = "study",
     MENU = "menu",
+    HIGH_SCORES = "high_scores",
     SETTINGS = "settings",
     MISTAKE_REVIEW = "mistake_review"  -- New mode for mistake review
 }

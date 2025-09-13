@@ -10,8 +10,7 @@ NumberDialRenderer.__index = NumberDialRenderer
 function NumberDialRenderer:new()
     local renderer = setmetatable({}, self)
 
-    -- Dial configuration
-    renderer.centerX = 200  -- Center of the dial on screen
+    renderer.centerX = 280
     renderer.centerY = 120  -- Vertical center for the dial
     renderer.radius = 80     -- Distance from center to number positions
 
@@ -155,18 +154,7 @@ function NumberDialRenderer:drawNumber(number, x, y, scale, opacity)
         gfx.setFont(self.smallNumberFont)
     end
 
-    -- Create a circular background for better visibility
-    local bgRadius = 15 * scale
-
-    -- Draw white background circle
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillCircleAtPoint(x, y, bgRadius)
-
-    -- Draw thicker black border for better visibility
     gfx.setColor(gfx.kColorBlack)
-    gfx.setLineWidth(3)  -- Increased from 2 to 3 for better contrast
-    gfx.drawCircleAtPoint(x, y, bgRadius)
-    gfx.setLineWidth(1)
 
     -- Draw the number text
     local numberText = tostring(number)

@@ -878,8 +878,7 @@ local function drawStudyMode()
         pd.ui.crankIndicator:draw()
     end
 
-    -- Draw instructions
-    gfx.drawTextAligned("Crank: Browse | Left/Right: +/-1 | Up/Down: +/-10 | B: Menu", 200, 200, kTextAlignment.center)
+    gfx.drawTextAligned("Crank/D-pad: Browse | B: Menu", 200, 200, kTextAlignment.center)
 
     -- Draw position indicator
     local positionText = studyModePosition .. " / 52"
@@ -1159,10 +1158,9 @@ end
 local function drawMenu()
     gfx.clear()
 
-    -- Draw title with more spacing
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Mnemonica Stack", 200, 25, kTextAlignment.center)
-    gfx.drawTextAligned("Memorizer", 200, 45, kTextAlignment.center)
+    gfx.drawTextAligned("Mnemonica Stack", 200, 10, kTextAlignment.center)
+    gfx.drawTextAligned("Memorizer", 200, 25, kTextAlignment.center)
 
     -- Menu options
     local menuItems = {
@@ -1173,29 +1171,23 @@ local function drawMenu()
         "Settings"
     }
 
-    -- Set font for menu items
-    gfx.setFont(marbleMadnessFont)
+    gfx.setFont(gfx.getSystemFont())
 
     -- Draw menu items with selection indicator
     for i, item in ipairs(menuItems) do
-        local y = 80 + (i - 1) * 25  -- Better vertical spacing
+        local y = 55 + (i - 1) * 25
 
         if i == menuSelection then
-            -- Draw selection box first
             gfx.setColor(gfx.kColorBlack)
-            gfx.fillRoundRect(50, y - 3, 300, 20, 3)
+            gfx.setLineWidth(2)
+            gfx.drawRoundRect(60, y - 3, 280, 22, 3)
+            gfx.setLineWidth(1)
 
-            -- Draw arrows on clean background
-            gfx.setColor(gfx.kColorBlack)
-            gfx.drawText(">", 35, y - 1)
-            gfx.drawText("<", 365, y - 1)
+            gfx.fillTriangle(42, y + 7, 46, y + 4, 46, y + 10)
+            gfx.fillTriangle(358, y + 7, 354, y + 4, 354, y + 10)
 
-            -- Draw selected text in white on black background
-            gfx.setColor(gfx.kColorWhite)
             gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
-            gfx.setColor(gfx.kColorBlack)
         else
-            -- Draw unselected text normally
             gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
         end
     end
@@ -1205,10 +1197,9 @@ local function drawMenu()
         pd.ui.crankIndicator:draw()
     end
 
-    -- Draw instructions with default font
-    gfx.setFont()  -- Reset to default font for instructions
-    gfx.drawTextAligned("Crank or D-pad to select", 200, 210, kTextAlignment.center)
-    gfx.drawTextAligned("(A) Start selected mode", 200, 225, kTextAlignment.center)
+    gfx.setFont()
+    gfx.drawTextAligned("Crank or D-pad to select", 200, 195, kTextAlignment.center)
+    gfx.drawTextAligned("(A) Start selected mode", 200, 210, kTextAlignment.center)
 end
 
 function playdate.update()
