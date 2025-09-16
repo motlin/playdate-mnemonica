@@ -17,8 +17,8 @@ function DialRenderer:new(cardImages, cardWidth, cardHeight)
 
     -- Dial configuration
     renderer.centerX = 200  -- Center of the dial on screen
-    renderer.centerY = 120  -- Vertical center for the dial
-    renderer.radius = 80     -- Distance from center to card positions
+    renderer.centerY = 100  -- Vertical center for the dial (moved up for better layout)
+    renderer.radius = 65     -- Distance from center to card positions (reduced for better fit)
 
     -- Visual configuration
     renderer.selectedScale = 1.2    -- Selected card is 20% larger
@@ -91,8 +91,8 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Calculate position on an elliptical path
     -- Use ellipse to create depth effect (cards at bottom appear further away)
-    local ellipseWidthRatio = 1.0   -- Horizontal radius multiplier
-    local ellipseHeightRatio = 0.6  -- Vertical radius multiplier (squashed for perspective)
+    local ellipseWidthRatio = 1.2   -- Horizontal radius multiplier (increased for better spread)
+    local ellipseHeightRatio = 0.7  -- Vertical radius multiplier (increased for better visibility)
 
     local x = self.centerX + math.sin(radians) * self.radius * ellipseWidthRatio
     local y = self.centerY + math.cos(radians) * self.radius * ellipseHeightRatio
