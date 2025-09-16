@@ -18,12 +18,12 @@ function DialRenderer:new(cardImages, cardWidth, cardHeight)
     -- Dial configuration
     renderer.centerX = 200  -- Center of the dial on screen
     renderer.centerY = 100  -- Vertical center for the dial (moved up for better layout)
-    renderer.radius = 65     -- Distance from center to card positions (reduced for better fit)
+    renderer.radius = 90     -- Distance from center to card positions (increased to prevent overlap)
 
     -- Visual configuration
-    renderer.selectedScale = 1.2    -- Selected card is 20% larger
-    renderer.minScale = 0.4         -- Minimum scale for distant cards
-    renderer.maxVisibleCards = 9    -- Number of cards visible in the dial
+    renderer.selectedScale = 1.0    -- Selected card at normal size (reduced to prevent overlap)
+    renderer.minScale = 0.3         -- Minimum scale for distant cards (smaller to save space)
+    renderer.maxVisibleCards = 7    -- Number of cards visible in the dial (reduced to prevent overlap)
 
     -- Animation state
     renderer.currentRotation = 0    -- Current rotation angle of the dial
@@ -91,8 +91,8 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Calculate position on an elliptical path
     -- Use ellipse to create depth effect (cards at bottom appear further away)
-    local ellipseWidthRatio = 1.2   -- Horizontal radius multiplier (increased for better spread)
-    local ellipseHeightRatio = 0.7  -- Vertical radius multiplier (increased for better visibility)
+    local ellipseWidthRatio = 1.4   -- Horizontal radius multiplier (increased for better horizontal spacing)
+    local ellipseHeightRatio = 0.5  -- Vertical radius multiplier (reduced for flatter ellipse)
 
     local x = self.centerX + math.sin(radians) * self.radius * ellipseWidthRatio
     local y = self.centerY + math.cos(radians) * self.radius * ellipseHeightRatio
@@ -104,9 +104,9 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Extra emphasis on the selected card
     if cardIndex == selectedCard then
-        scale = scale * 1.15  -- Make selected card even more prominent
+        scale = scale * 1.1  -- Make selected card slightly more prominent (reduced from 1.15)
         -- Slight position adjustment to pull selected card forward
-        y = y - 10
+        y = y - 8  -- Reduced from 10 to keep cards aligned better
     end
 
     -- Calculate opacity/visibility based on position
@@ -250,9 +250,9 @@ function DialRenderer:drawSelectionIndicator(selectedCard, totalCards)
     local transform = self:getCardTransform(selectedCard, selectedCard, totalCards)
 
     -- Draw brackets or arrows around selected card
-    local bracketWidth = 60
-    local bracketHeight = 80
-    local bracketOffset = 10
+    local bracketWidth = 50  -- Reduced from 60 to match smaller cards
+    local bracketHeight = 65  -- Reduced from 80 to match smaller cards
+    local bracketOffset = 8   -- Reduced from 10 for tighter brackets
 
     -- Use thicker lines for better visibility
     gfx.setLineWidth(2)
