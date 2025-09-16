@@ -1186,6 +1186,66 @@ local function drawMenu()
     gfx.drawTextAligned("(A) Start selected mode", 200, 210, kTextAlignment.center)
 end
 
+-- Menu callback for pause/resume
+local menu = pd.getSystemMenu()
+
+local function updateMenuItems()
+    menu:removeAllMenuItems()
+
+    -- Don't show pause/resume in menu mode, study mode, or settings mode
+    if gameState.currentMode ~= GameState.MODES.MENU and
+       gameState.currentMode ~= GameState.MODES.STUDY and
+       gameState.currentMode ~= GameState.MODES.SETTINGS then
+        if gameState.isPaused then
+            menu:addMenuItem("Resume", function()
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                gameState:resume()
+                updateMenuItems()
+            end)
+        else
+            menu:addMenuItem("Pause", function()
+                if gameState.soundEnabled then sounds.buttonPress:play() end
+                gameState:pause()
+                updateMenuItems()
+            end)
+        end
+
+        menu:addMenuItem("Restart Quiz", function()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            resetGame()
+            updateMenuItems()
+        end)
+
+        menu:addMenuItem("Main Menu", function()
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
+            updateMenuItems()
+        end)
+    end
+
+    -- Add sound toggle menu item (available in all modes)
+    local soundLabel = gameState.soundEnabled and "Sound: On" or "Sound: Off"
+    menu:addMenuItem(soundLabel, function()
+        -- Toggle sound setting
+        gameState.soundEnabled = not gameState.soundEnabled
+        -- Save the setting immediately so it persists
+        gameState:saveSettings()
+        -- Play a confirmation sound if we just enabled sound
+        if gameState.soundEnabled then sounds.buttonPress:play() end
+        -- Update menu to reflect new state
+        updateMenuItems()
+    end)
+
+    -- Add reset statistics menu item (available in all modes)
+    menu:addMenuItem("Reset Statistics", function()
+        if gameState.soundEnabled then sounds.buttonPress:play() end
+        gameState:resetCardStats()
+        -- Update menu to ensure it stays consistent
+        updateMenuItems()
+    end)
+end
+
 function playdate.update()
     -- Handle pause state
     if gameState.isPaused then
@@ -1606,66 +1666,6 @@ function playdate.update()
             end
         end
     end
-end
-
--- Menu callback for pause/resume
-local menu = pd.getSystemMenu()
-
-local function updateMenuItems()
-    menu:removeAllMenuItems()
-
-    -- Don't show pause/resume in menu mode, study mode, or settings mode
-    if gameState.currentMode ~= GameState.MODES.MENU and
-       gameState.currentMode ~= GameState.MODES.STUDY and
-       gameState.currentMode ~= GameState.MODES.SETTINGS then
-        if gameState.isPaused then
-            menu:addMenuItem("Resume", function()
-                if gameState.soundEnabled then sounds.buttonPress:play() end
-                gameState:resume()
-                updateMenuItems()
-            end)
-        else
-            menu:addMenuItem("Pause", function()
-                if gameState.soundEnabled then sounds.buttonPress:play() end
-                gameState:pause()
-                updateMenuItems()
-            end)
-        end
-
-        menu:addMenuItem("Restart Quiz", function()
-            if gameState.soundEnabled then sounds.buttonPress:play() end
-            resetGame()
-            updateMenuItems()
-        end)
-
-        menu:addMenuItem("Main Menu", function()
-            if gameState.soundEnabled then sounds.buttonPress:play() end
-            gameState.currentMode = GameState.MODES.MENU
-            menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
-            updateMenuItems()
-        end)
-    end
-
-    -- Add sound toggle menu item (available in all modes)
-    local soundLabel = gameState.soundEnabled and "Sound: On" or "Sound: Off"
-    menu:addMenuItem(soundLabel, function()
-        -- Toggle sound setting
-        gameState.soundEnabled = not gameState.soundEnabled
-        -- Save the setting immediately so it persists
-        gameState:saveSettings()
-        -- Play a confirmation sound if we just enabled sound
-        if gameState.soundEnabled then sounds.buttonPress:play() end
-        -- Update menu to reflect new state
-        updateMenuItems()
-    end)
-
-    -- Add reset statistics menu item (available in all modes)
-    menu:addMenuItem("Reset Statistics", function()
-        if gameState.soundEnabled then sounds.buttonPress:play() end
-        gameState:resetCardStats()
-        -- Update menu to ensure it stays consistent
-        updateMenuItems()
-    end)
 end
 
 -- Initialize game
