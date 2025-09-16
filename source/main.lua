@@ -867,10 +867,6 @@ local function drawStudyMode()
     end
 
     gfx.drawTextAligned("Crank/D-pad: Browse | B: Menu", 200, 200, kTextAlignment.center)
-
-    -- Draw position indicator
-    local positionText = studyModePosition .. " / 52"
-    gfx.drawTextAligned(positionText, 200, 220, kTextAlignment.center)
 end
 
 local function drawMistakeReviewComplete()
