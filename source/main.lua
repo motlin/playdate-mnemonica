@@ -1049,26 +1049,40 @@ end
 local function drawCredits()
     gfx.clear()
 
-    -- Draw title
+    -- Draw title in heading font
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Credits", 200, 20, kTextAlignment.center)
-    gfx.setFont()
+    gfx.drawTextAligned("Credits", 200, 15, kTextAlignment.center)
 
-    -- Credits content
-    gfx.drawTextAligned("Mnemonica Stack Memorizer", 200, 50, kTextAlignment.center)
-    gfx.drawTextAligned("for Playdate", 200, 70, kTextAlignment.center)
+    -- Use regular font for all content
+    gfx.setFont(gfx.getSystemFont())
 
-    gfx.drawTextAligned("-- Created by --", 200, 100, kTextAlignment.center)
-    gfx.drawTextAligned("Mr. Poopybutthole", 200, 120, kTextAlignment.center)
+    -- Credits content with consistent left alignment
+    local leftX = 40
+    local lineHeight = 15
+    local y = 45
 
-    gfx.drawTextAligned("-- Playing Card Assets --", 200, 150, kTextAlignment.center)
-    gfx.drawText("Free playing cards from:", 50, 170)
-    gfx.drawText("devforum.play.date/t/", 50, 185)
-    gfx.drawText("playing-card-deck-imagetable-", 50, 200)
-    gfx.drawText("free-for-your-card-game/994", 50, 215)
+    gfx.drawText("Mnemonica Stack Memorizer", leftX, y)
+    y = y + lineHeight
+    gfx.drawText("for Playdate", leftX, y)
+    y = y + lineHeight * 1.5
 
-    -- Instructions
-    gfx.drawTextAligned("Press B to return", 200, 230, kTextAlignment.center)
+    gfx.drawText("Created by:", leftX, y)
+    y = y + lineHeight
+    gfx.drawText("  Mr. Poopybutthole", leftX, y)
+    y = y + lineHeight * 1.5
+
+    gfx.drawText("Playing Card Assets:", leftX, y)
+    y = y + lineHeight
+    gfx.drawText("  Free playing cards from:", leftX, y)
+    y = y + lineHeight
+    gfx.drawText("  devforum.play.date/t/", leftX, y)
+    y = y + lineHeight
+    gfx.drawText("  playing-card-deck-imagetable-", leftX, y)
+    y = y + lineHeight
+    gfx.drawText("  free-for-your-card-game/994", leftX, y)
+    y = y + lineHeight * 2
+
+    gfx.drawText("Press B to return", leftX, y)
 end
 
 -- State for menu crank navigation with hysteresis
