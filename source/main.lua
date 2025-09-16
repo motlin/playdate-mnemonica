@@ -487,7 +487,7 @@ local function drawQuizNumberToCard()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Menu", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Crank/D-pad: Select | A: Confirm | B: Menu", 200, 220, kTextAlignment.center)
 end
 
 local function drawQuizCardToNumber()
@@ -531,7 +531,7 @@ local function drawQuizCardToNumber()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Menu", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Crank/D-pad: Select | A: Confirm | B: Menu", 200, 220, kTextAlignment.center)
 end
 
 local function drawQuiz()
@@ -1235,9 +1235,51 @@ function playdate.update()
                     if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
                         updateSelectedCard()
                         drawQuizNumberToCard()
+
+                        -- D-pad navigation for card selection in mistake review
+                        if pd.buttonJustPressed(pd.kButtonUp) then
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedCard = selectedCard - 1
+                            if selectedCard < 1 then selectedCard = 52 end
+                        elseif pd.buttonJustPressed(pd.kButtonDown) then
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedCard = selectedCard + 1
+                            if selectedCard > 52 then selectedCard = 1 end
+                        elseif pd.buttonJustPressed(pd.kButtonLeft) then
+                            -- Jump back 13 cards (quarter deck)
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedCard = selectedCard - 13
+                            if selectedCard < 1 then selectedCard = selectedCard + 52 end
+                        elseif pd.buttonJustPressed(pd.kButtonRight) then
+                            -- Jump forward 13 cards (quarter deck)
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedCard = selectedCard + 13
+                            if selectedCard > 52 then selectedCard = selectedCard - 52 end
+                        end
                     else
                         updateSelectedNumber()
                         drawQuizCardToNumber()
+
+                        -- D-pad navigation for number selection in mistake review
+                        if pd.buttonJustPressed(pd.kButtonUp) then
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedNumber = selectedNumber - 1
+                            if selectedNumber < 1 then selectedNumber = 52 end
+                        elseif pd.buttonJustPressed(pd.kButtonDown) then
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedNumber = selectedNumber + 1
+                            if selectedNumber > 52 then selectedNumber = 1 end
+                        elseif pd.buttonJustPressed(pd.kButtonLeft) then
+                            -- Jump back 10 positions
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedNumber = selectedNumber - 10
+                            if selectedNumber < 1 then selectedNumber = selectedNumber + 52 end
+                        elseif pd.buttonJustPressed(pd.kButtonRight) then
+                            -- Jump forward 10 positions
+                            if gameState.soundEnabled then sounds.crankTick:play() end
+                            selectedNumber = selectedNumber + 10
+                            if selectedNumber > 52 then selectedNumber = selectedNumber - 52 end
+                        end
                     end
 
                     if pd.buttonJustPressed(pd.kButtonA) then
@@ -1430,6 +1472,51 @@ function playdate.update()
         end
 
         drawQuiz()
+
+        -- Handle D-pad navigation for quiz modes
+        if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+            -- D-pad navigation for card selection (Number to Card Quiz)
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard - 1
+                if selectedCard < 1 then selectedCard = 52 end
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard + 1
+                if selectedCard > 52 then selectedCard = 1 end
+            elseif pd.buttonJustPressed(pd.kButtonLeft) then
+                -- Jump back 13 cards (quarter deck)
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard - 13
+                if selectedCard < 1 then selectedCard = selectedCard + 52 end
+            elseif pd.buttonJustPressed(pd.kButtonRight) then
+                -- Jump forward 13 cards (quarter deck)
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard + 13
+                if selectedCard > 52 then selectedCard = selectedCard - 52 end
+            end
+        elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+            -- D-pad navigation for number selection (Card to Number Quiz)
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber - 1
+                if selectedNumber < 1 then selectedNumber = 52 end
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber + 1
+                if selectedNumber > 52 then selectedNumber = 1 end
+            elseif pd.buttonJustPressed(pd.kButtonLeft) then
+                -- Jump back 10 positions
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber - 10
+                if selectedNumber < 1 then selectedNumber = selectedNumber + 52 end
+            elseif pd.buttonJustPressed(pd.kButtonRight) then
+                -- Jump forward 10 positions
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber + 10
+                if selectedNumber > 52 then selectedNumber = selectedNumber - 52 end
+            end
+        end
 
         if pd.buttonJustPressed(pd.kButtonA) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
