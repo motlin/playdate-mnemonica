@@ -852,18 +852,14 @@ local function drawStudyMode()
 
     -- Draw position number prominently
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Position " .. studyModePosition, 200, 40, kTextAlignment.center)
+    gfx.drawTextAligned("Position " .. studyModePosition, 200, 50, kTextAlignment.center)
     gfx.setFont()
 
     -- Draw the card at 1x scale
-    drawCard(cardAtPosition, 200, 100, 1)
+    drawCard(cardAtPosition, 200, 110, 1)
 
-    -- Draw both directions of the mapping
-    gfx.drawTextAligned("Position " .. studyModePosition .. " -> " .. cardAtPosition, 200, 150, kTextAlignment.center)
-
-    -- Find this card's position (for verification)
-    local verifyText = cardAtPosition .. " -> Position " .. studyModePosition
-    gfx.drawTextAligned(verifyText, 200, 170, kTextAlignment.center)
+    -- Draw card name below the image for clarity
+    gfx.drawTextAligned(cardAtPosition, 200, 160, kTextAlignment.center)
 
     -- Draw crank indicator if docked
     if pd.isCrankDocked() then
