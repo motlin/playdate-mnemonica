@@ -556,27 +556,27 @@ local function drawFeedback()
             gfx.drawTextAligned("Correct!", 200, 20, kTextAlignment.center)
             gfx.setFont()
             -- Show the correct card at 1x scale
-            drawCard(gameState.correctAnswer, 200, 70, 1)
+            drawCard(gameState.correctAnswer, 200, 90, 1)
         elseif gameState.userPassed then
             gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("You passed!", 200, 10, kTextAlignment.center)
             gfx.setFont()
 
             -- Show correct answer
-            gfx.drawTextAligned("Correct answer:", 200, 35, kTextAlignment.center)
-            drawCard(gameState.correctAnswer, 200, 80, 1)
+            gfx.drawTextAligned("Correct answer:", 200, 40, kTextAlignment.center)
+            drawCard(gameState.correctAnswer, 200, 100, 1)
         else
             gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
             gfx.drawTextAligned("Wrong!", 200, 10, kTextAlignment.center)
             gfx.setFont()
 
             -- Show user's wrong answer on the left at 1x scale
-            gfx.drawTextAligned("You picked:", 100, 35, kTextAlignment.center)
-            drawCard(gameState.userAnswer, 100, 80, 1)
+            gfx.drawTextAligned("You picked:", 100, 40, kTextAlignment.center)
+            drawCard(gameState.userAnswer, 100, 100, 1)
 
             -- Show correct answer on the right at 1x scale
-            gfx.drawTextAligned("Correct:", 300, 35, kTextAlignment.center)
-            drawCard(gameState.correctAnswer, 300, 80, 1)
+            gfx.drawTextAligned("Correct:", 300, 40, kTextAlignment.center)
+            drawCard(gameState.correctAnswer, 300, 100, 1)
         end
     elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
         -- Card to Number mode feedback
@@ -1100,8 +1100,19 @@ local function drawCredits()
     gfx.drawTextAligned("Press B to return", 200, 230, kTextAlignment.center)
 end
 
+-- State for menu crank navigation with hysteresis
+local menuCrankState = {
+    lastAngle = 0,
+    hysteresisThreshold = 15  -- degrees of hysteresis to prevent flickering
+}
+
 local function updateMenuSelectionWithCrank()
     local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
+
+    -- Initialize on first call
+    if menuCrankState.lastAngle == 0 then
+        menuCrankState.lastAngle = crankPosition
+    end
 
     -- Only process if crank position has changed significantly
     if math.abs(crankPosition - lastCrankPosition) < 0.5 then
@@ -1118,38 +1129,42 @@ local function updateMenuSelectionWithCrank()
     end
     crankVelocity = delta
 
-    -- Map crank position to menu items (4 items total)
-    local degreesPerItem = 360 / 4
+    -- Map crank position to menu items (5 items total)
+    local numMenuItems = 5
+    local degreesPerItem = 360 / numMenuItems  -- 72 degrees per item
     local effectiveDegreesPerItem = degreesPerItem / gameState.crankSensitivity
 
-    -- Map crank position to a floating point menu position
-    local floatMenu = (crankPosition / effectiveDegreesPerItem) + 1
+    -- Calculate which menu item we should be on based on angle
+    -- Add 0.5 to center each item in its range
+    local targetSelection = math.floor((crankPosition / effectiveDegreesPerItem) + 0.5) + 1
 
-    -- Add subtle snap behavior when crank is moving slowly
-    local snapThreshold = 0.35
-    local velocityThreshold = 3
+    -- Wrap around
+    if targetSelection > numMenuItems then targetSelection = targetSelection - numMenuItems end
+    if targetSelection < 1 then targetSelection = targetSelection + numMenuItems end
 
-    if math.abs(crankVelocity) < velocityThreshold then
-        -- When moving slowly, snap to nearest menu item
-        local nearestItem = math.floor(floatMenu + 0.5)
-        local distanceToNearest = math.abs(floatMenu - nearestItem)
+    -- Apply hysteresis to prevent flickering
+    if targetSelection ~= menuSelection then
+        -- Calculate the angle boundaries for current and target selections
+        local currentCenter = ((menuSelection - 1) * effectiveDegreesPerItem) % 360
+        local targetCenter = ((targetSelection - 1) * effectiveDegreesPerItem) % 360
 
-        if distanceToNearest < snapThreshold then
-            floatMenu = nearestItem
+        -- Calculate angular distance from crank to target center
+        local distToTarget = math.abs(crankPosition - targetCenter)
+        if distToTarget > 180 then distToTarget = 360 - distToTarget end
+
+        -- Calculate angular distance from crank to current center
+        local distToCurrent = math.abs(crankPosition - currentCenter)
+        if distToCurrent > 180 then distToCurrent = 360 - distToCurrent end
+
+        -- Only switch if we're significantly closer to the new target
+        -- This creates a "sticky" zone around each selection
+        if distToTarget < distToCurrent - menuCrankState.hysteresisThreshold then
+            menuSelection = targetSelection
+            if gameState.soundEnabled then sounds.menuMove:play() end
+            menuCrankState.lastAngle = crankPosition
         end
-    end
-
-    -- Convert to integer menu position
-    local newSelection = math.floor(floatMenu)
-
-    -- Wrap around menu items
-    if newSelection > 5 then newSelection = 1 end
-    if newSelection < 1 then newSelection = 5 end
-
-    -- Check if selection changed to play sound effect
-    if newSelection ~= menuSelection then
-        menuSelection = newSelection
-        if gameState.soundEnabled then sounds.menuMove:play() end
+    else
+        menuCrankState.lastAngle = crankPosition
     end
 
     lastCrankPosition = crankPosition
@@ -1296,6 +1311,7 @@ function playdate.update()
                         else
                             -- Fallback to menu if no original session
                             gameState.currentMode = GameState.MODES.MENU
+                            menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
                             gameState.mistakeReviewMode = nil
                         end
                     end
@@ -1350,6 +1366,7 @@ function playdate.update()
         if pd.buttonJustPressed(pd.kButtonB) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
         end
 
     elseif gameState.currentMode == GameState.MODES.HIGH_SCORES then
@@ -1359,6 +1376,7 @@ function playdate.update()
         if pd.buttonJustPressed(pd.kButtonB) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
         end
 
     elseif gameState.currentMode == GameState.MODES.SETTINGS then
@@ -1419,10 +1437,12 @@ function playdate.update()
                 elseif settingsSelection == 6 then
                     -- Back to menu
                     gameState.currentMode = GameState.MODES.MENU
+                    menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
                 end
             elseif pd.buttonJustPressed(pd.kButtonB) then
                 if gameState.soundEnabled then sounds.buttonPress:play() end
                 gameState.currentMode = GameState.MODES.MENU
+                menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
             end
         end
 
@@ -1504,6 +1524,7 @@ function playdate.update()
                         completionScreenState.mistakeScrollOffset = 0
                     else
                         gameState.currentMode = GameState.MODES.MENU
+                        menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
                         completionScreenState.selectedOption = 1  -- Reset for next time
                     end
                 else
@@ -1513,6 +1534,7 @@ function playdate.update()
                         completionScreenState.selectedOption = 1  -- Reset for next time
                     else
                         gameState.currentMode = GameState.MODES.MENU
+                        menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
                         completionScreenState.selectedOption = 1  -- Reset for next time
                     end
                 end
@@ -1554,6 +1576,7 @@ local function updateMenuItems()
         menu:addMenuItem("Main Menu", function()
             if gameState.soundEnabled then sounds.buttonPress:play() end
             gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
             updateMenuItems()
         end)
     end
@@ -1591,4 +1614,5 @@ gameState:loadSettings()  -- Load settings including last selected menu mode
 menuSelection = gameState.lastSelectedMenuMode  -- Restore last selected menu item
 gameState.currentMode = GameState.MODES.MENU  -- Start at main menu
 lastCrankPosition = pd.getCrankPosition()  -- Initialize crank position
+menuCrankState.lastAngle = pd.getCrankPosition()  -- Initialize menu crank state
 updateMenuItems()  -- Set up menu
