@@ -10,6 +10,7 @@ local GameState = import "GameState"
 local DialRenderer = import "DialRenderer"
 local NumberDialRenderer = import "NumberDialRenderer"
 local MistakeReviewMode = import "MistakeReviewMode"
+local UIHelpers = import "UIHelpers"
 
 -- Initialize GameState manager
 local gameState = GameState:new()
@@ -721,16 +722,7 @@ local function drawCompletionSummary()
 
     for i, option in ipairs(displayOptions) do
         local y = menuY + ((i - 1) * 20)
-        if i == completionScreenState.selectedOption then
-            -- Highlight selected option
-            gfx.setColor(gfx.kColorBlack)
-            gfx.fillRoundRect(100, y - 3, 200, 18, 3)
-            gfx.setColor(gfx.kColorWhite)
-            gfx.drawTextAligned(option, 200, y, kTextAlignment.center)
-            gfx.setColor(gfx.kColorBlack)
-        else
-            gfx.drawTextAligned(option, 200, y, kTextAlignment.center)
-        end
+        UIHelpers.drawMenuItem(option, 200, y, 200, i == completionScreenState.selectedOption)
     end
 
     -- Instructions
@@ -1055,20 +1047,7 @@ local function drawSettings()
     }
 
     -- Draw settings items with selection indicator
-    for i, item in ipairs(settingsItems) do
-        local y = 60 + (i - 1) * 25
-
-        if i == settingsSelection then
-            -- Draw selection box
-            gfx.setColor(gfx.kColorBlack)
-            gfx.fillRoundRect(50, y - 3, 300, 21, 3)
-            gfx.setColor(gfx.kColorWhite)
-            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
-            gfx.setColor(gfx.kColorBlack)
-        else
-            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
-        end
-    end
+    UIHelpers.drawMenuList(settingsItems, 200, 60, 300, settingsSelection, 25)
 
     -- Draw instructions
     gfx.drawTextAligned("Up/Down: Select | A: Confirm", 200, 205, kTextAlignment.center)
@@ -1189,23 +1168,7 @@ local function drawMenu()
     gfx.setFont(gfx.getSystemFont())
 
     -- Draw menu items with selection indicator
-    for i, item in ipairs(menuItems) do
-        local y = 55 + (i - 1) * 25
-
-        if i == menuSelection then
-            gfx.setColor(gfx.kColorBlack)
-            gfx.setLineWidth(2)
-            gfx.drawRoundRect(60, y - 3, 280, 22, 3)
-            gfx.setLineWidth(1)
-
-            gfx.fillTriangle(42, y + 7, 46, y + 4, 46, y + 10)
-            gfx.fillTriangle(358, y + 7, 354, y + 4, 354, y + 10)
-
-            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
-        else
-            gfx.drawTextAligned(item, 200, y, kTextAlignment.center)
-        end
-    end
+    UIHelpers.drawMenuList(menuItems, 200, 55, 280, menuSelection, 25)
 
     -- Draw crank indicator if docked
     if pd.isCrankDocked() then
