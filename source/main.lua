@@ -1053,12 +1053,12 @@ local function drawCredits()
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned("Credits", 200, 15, kTextAlignment.center)
 
-    -- Use regular font for all content
-    gfx.setFont(gfx.getSystemFont())
+    -- Use light font for all content (smaller than regular font)
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyLight))
 
     -- Credits content with consistent left alignment
     local leftX = 40
-    local lineHeight = 15
+    local lineHeight = 12  -- Reduced line height for smaller font
     local y = 45
 
     gfx.drawText("Mnemonica Stack Memorizer", leftX, y)
