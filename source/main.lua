@@ -487,7 +487,7 @@ local function drawQuizNumberToCard()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Pass", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Menu", 200, 220, kTextAlignment.center)
 end
 
 local function drawQuizCardToNumber()
@@ -531,7 +531,7 @@ local function drawQuizCardToNumber()
     end
 
     -- Draw instructions
-    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Pass", 200, 220, kTextAlignment.center)
+    gfx.drawTextAligned("Crank: Select | A: Confirm | B: Menu", 200, 220, kTextAlignment.center)
 end
 
 local function drawQuiz()
@@ -1245,7 +1245,13 @@ function playdate.update()
                         checkAnswer()
                     elseif pd.buttonJustPressed(pd.kButtonB) then
                         if gameState.soundEnabled then sounds.buttonPress:play() end
-                        passQuestion()
+                        -- Return to menu
+                        gameState.currentMode = GameState.MODES.MENU
+                        menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
+                        updateMenuItems()
+                        -- Clear the mistake review mode
+                        gameState.mistakeReviewMode = nil
+                        gameState.originalSession = nil
                     end
                 elseif gameState.quizState == GameState.QUIZ_STATES.FEEDBACK then
                     drawFeedback()
@@ -1430,7 +1436,10 @@ function playdate.update()
             checkAnswer()
         elseif pd.buttonJustPressed(pd.kButtonB) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
-            passQuestion()
+            -- Return to menu
+            gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()  -- Reset menu crank state
+            updateMenuItems()
         end
 
     elseif gameState.quizState == GameState.QUIZ_STATES.FEEDBACK then
