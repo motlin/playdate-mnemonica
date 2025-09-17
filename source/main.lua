@@ -407,6 +407,30 @@ local function startMistakeReview()
     end
 end
 
+-- Simon Mode Functions - Forward declarations needed before startSelectedMode
+local startSimonRound
+local drawSimonShowing
+local drawSimonWaiting
+local drawSimonInput
+local drawSimonFeedback
+local checkSimonAnswer
+local updateSimonMode
+
+startSimonRound = function()
+    gameState.simonMode.currentRound = gameState.simonMode.currentRound + 1
+
+    -- Add a new random position to the sequence
+    local newPosition = math.random(1, 52)
+    table.insert(gameState.simonMode.sequence, newPosition)
+
+    -- Reset for showing sequence
+    gameState.simonMode.phase = "SHOWING"
+    gameState.simonMode.sequenceIndex = 1
+    gameState.simonMode.displayTimer = 0
+    gameState.simonMode.playerIndex = 1
+    gameState.simonMode.selectedInput = "card"
+end
+
 local function startSelectedMode()
     local modes = {
         GameState.MODES.QUIZ_NUMBER_TO_CARD,
@@ -1275,23 +1299,8 @@ local function updateMenuItems()
     end)
 end
 
--- Simon Mode Functions
-local function startSimonRound()
-    gameState.simonMode.currentRound = gameState.simonMode.currentRound + 1
-
-    -- Add a new random position to the sequence
-    local newPosition = math.random(1, 52)
-    table.insert(gameState.simonMode.sequence, newPosition)
-
-    -- Reset for showing sequence
-    gameState.simonMode.phase = "SHOWING"
-    gameState.simonMode.sequenceIndex = 1
-    gameState.simonMode.displayTimer = 0
-    gameState.simonMode.playerIndex = 1
-    gameState.simonMode.selectedInput = "card"
-end
-
-local function drawSimonShowing()
+-- Simon Mode Draw Functions
+drawSimonShowing = function()
     gfx.clear()
 
     -- Title
@@ -1316,7 +1325,7 @@ local function drawSimonShowing()
                        200, 200, kTextAlignment.center)
 end
 
-local function drawSimonWaiting()
+drawSimonWaiting = function()
     gfx.clear()
 
     -- Title
@@ -1328,7 +1337,7 @@ local function drawSimonWaiting()
     gfx.drawTextAligned("Press A to begin", 200, 130, kTextAlignment.center)
 end
 
-local function drawSimonInput()
+drawSimonInput = function()
     gfx.clear()
 
     -- Title
@@ -1346,8 +1355,9 @@ local function drawSimonInput()
         -- Player is selecting the card
         gfx.drawTextAligned("What card is at position " .. currentPosition .. "?", 200, 55, kTextAlignment.center)
 
-        -- Use the dial renderer to show card selection
-        dialRenderer:draw(200, 140, selectedCard, 160, 80)
+        -- Use the dial renderer to show card selection with correct parameters
+        dialRenderer:drawFrame()  -- Draw dial background/frame
+        dialRenderer:draw(uspccOrder, selectedCard, getCardImage, drawCard)
 
         gfx.drawTextAligned("Crank to select card | A: Confirm", 200, 210, kTextAlignment.center)
         gfx.drawTextAligned("B: Cancel", 200, 225, kTextAlignment.center)
@@ -1357,14 +1367,15 @@ local function drawSimonInput()
         gfx.drawTextAligned("What position is " .. cardName .. "?", 200, 55, kTextAlignment.center)
 
         -- Use the number dial renderer
-        numberDialRenderer:draw(200, 140, selectedNumber, 160, 80)
+        numberDialRenderer:drawFrame()  -- Draw dial background/frame
+        numberDialRenderer:draw(selectedNumber)
 
         gfx.drawTextAligned("Crank to select position | A: Confirm", 200, 210, kTextAlignment.center)
         gfx.drawTextAligned("B: Cancel", 200, 225, kTextAlignment.center)
     end
 end
 
-local function drawSimonFeedback()
+drawSimonFeedback = function()
     gfx.clear()
 
     -- Title
@@ -1411,7 +1422,7 @@ local function drawSimonFeedback()
     end
 end
 
-local function checkSimonAnswer()
+checkSimonAnswer = function()
     local position = gameState.simonMode.sequence[gameState.simonMode.playerIndex]
 
     if gameState.simonMode.selectedInput == "card" then
@@ -1440,7 +1451,7 @@ local function checkSimonAnswer()
     gameState.simonMode.phase = "FEEDBACK"
 end
 
-local function updateSimonMode()
+updateSimonMode = function()
     if gameState.simonMode.phase == "SHOWING" then
         -- Auto-advance through sequence display
         gameState.simonMode.displayTimer = gameState.simonMode.displayTimer + 1
