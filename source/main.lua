@@ -1308,21 +1308,33 @@ drawSimonShowing = function()
     gfx.drawTextAligned("Simon Mode - Round " .. gameState.simonMode.currentRound, 200, 10, kTextAlignment.center)
     gfx.setFont()
 
-    -- Show current card in sequence
-    local position = gameState.simonMode.sequence[gameState.simonMode.sequenceIndex]
-    local card = mnemonicaStack[position]
+    -- Check if we have a valid sequence index
+    if gameState.simonMode.sequenceIndex <= #gameState.simonMode.sequence then
+        -- Show current card in sequence
+        local position = gameState.simonMode.sequence[gameState.simonMode.sequenceIndex]
+        local card = mnemonicaStack[position]
 
-    -- Draw position number
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Position " .. position, 200, 60, kTextAlignment.center)
-    gfx.setFont()
+        -- Draw position number prominently (like study mode)
+        gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+        gfx.drawTextAligned("Position " .. position, 200, 50, kTextAlignment.center)
+        gfx.setFont()
 
-    -- Draw the card
-    drawCard(card, 200, 110, 1.5)
+        -- Draw the card at 1x scale (like study mode)
+        drawCard(card, 200, 110, 1)
 
-    -- Progress indicator
-    gfx.drawTextAligned("Card " .. gameState.simonMode.sequenceIndex .. " of " .. gameState.simonMode.currentRound,
-                       200, 200, kTextAlignment.center)
+        -- Draw card name below the image for clarity
+        gfx.drawTextAligned(card, 200, 160, kTextAlignment.center)
+
+        -- Progress indicator
+        gfx.drawTextAligned("Card " .. gameState.simonMode.sequenceIndex .. " of " .. gameState.simonMode.currentRound,
+                           200, 200, kTextAlignment.center)
+
+        -- Instructions
+        gfx.drawTextAligned("Press A to skip, B to exit", 200, 220, kTextAlignment.center)
+    else
+        -- Should not happen, but show a message if it does
+        gfx.drawTextAligned("Preparing next phase...", 200, 120, kTextAlignment.center)
+    end
 end
 
 drawSimonWaiting = function()
