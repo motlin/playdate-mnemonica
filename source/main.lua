@@ -43,6 +43,9 @@ assert(sounds.correct, "Failed to load correct.wav")
 assert(sounds.incorrect, "Failed to load incorrect.wav")
 assert(sounds.sessionComplete, "Failed to load session_complete.wav")
 
+-- Set volume levels for sounds (0.0 to 1.0)
+sounds.buttonPress:setVolume(0.3)
+
 -- Store individual card images in a table
 local cardImages = {}
 local cardWidth, cardHeight = 50, 70
