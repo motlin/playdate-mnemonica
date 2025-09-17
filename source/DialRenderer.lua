@@ -18,12 +18,12 @@ function DialRenderer:new(cardImages, cardWidth, cardHeight)
     -- Dial configuration
     renderer.centerX = 200  -- Center of the dial on screen
     renderer.centerY = 100  -- Vertical center for the dial (moved up for better layout)
-    renderer.radius = 90     -- Distance from center to card positions (increased to prevent overlap)
+    renderer.radius = 100    -- Distance from center to card positions
 
     -- Visual configuration
-    renderer.selectedScale = 1.0    -- Selected card at normal size (reduced to prevent overlap)
-    renderer.minScale = 0.3         -- Minimum scale for distant cards (smaller to save space)
-    renderer.maxVisibleCards = 7    -- Number of cards visible in the dial (reduced to prevent overlap)
+    renderer.selectedScale = 1.2    -- Selected card at larger size for better visibility
+    renderer.minScale = 0.6         -- Minimum scale for adjacent cards
+    renderer.maxVisibleCards = 3    -- Show only 3 cards to prevent overlap
 
     -- Animation state
     renderer.currentRotation = 0    -- Current rotation angle of the dial
@@ -104,9 +104,9 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Extra emphasis on the selected card
     if cardIndex == selectedCard then
-        scale = scale * 1.1  -- Make selected card slightly more prominent (reduced from 1.15)
+        scale = scale * 1.05  -- Make selected card slightly more prominent
         -- Slight position adjustment to pull selected card forward
-        y = y - 8  -- Reduced from 10 to keep cards aligned better
+        y = y - 10  -- Pull selected card forward
     end
 
     -- Calculate opacity/visibility based on position
@@ -250,9 +250,9 @@ function DialRenderer:drawSelectionIndicator(selectedCard, totalCards)
     local transform = self:getCardTransform(selectedCard, selectedCard, totalCards)
 
     -- Draw brackets or arrows around selected card
-    local bracketWidth = 50  -- Reduced from 60 to match smaller cards
-    local bracketHeight = 65  -- Reduced from 80 to match smaller cards
-    local bracketOffset = 8   -- Reduced from 10 for tighter brackets
+    local bracketWidth = 60  -- Width for brackets around selected card
+    local bracketHeight = 80  -- Height for brackets around selected card
+    local bracketOffset = 10  -- Space between card and brackets
 
     -- Use thicker lines for better visibility
     gfx.setLineWidth(2)
