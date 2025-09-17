@@ -21,8 +21,8 @@ function DialRenderer:new(cardImages, cardWidth, cardHeight)
     renderer.radius = 100    -- Distance from center to card positions
 
     -- Visual configuration
-    renderer.selectedScale = 1.2    -- Selected card at larger size for better visibility
-    renderer.minScale = 0.6         -- Minimum scale for adjacent cards
+    renderer.selectedScale = 1.3    -- Selected card at larger size for better visibility
+    renderer.minScale = 0.5         -- Minimum scale for adjacent cards (smaller to reduce overlap)
     renderer.maxVisibleCards = 3    -- Show only 3 cards to prevent overlap
 
     -- Animation state
@@ -91,8 +91,8 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Calculate position on an elliptical path
     -- Use ellipse to create depth effect (cards at bottom appear further away)
-    local ellipseWidthRatio = 1.4   -- Horizontal radius multiplier (increased for better horizontal spacing)
-    local ellipseHeightRatio = 0.5  -- Vertical radius multiplier (reduced for flatter ellipse)
+    local ellipseWidthRatio = 2.5   -- Horizontal radius multiplier (further increased to prevent overlap)
+    local ellipseHeightRatio = 0.4  -- Vertical radius multiplier (slightly reduced for even flatter ellipse)
 
     local x = self.centerX + math.sin(radians) * self.radius * ellipseWidthRatio
     local y = self.centerY + math.cos(radians) * self.radius * ellipseHeightRatio
@@ -104,9 +104,9 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Extra emphasis on the selected card
     if cardIndex == selectedCard then
-        scale = scale * 1.05  -- Make selected card slightly more prominent
-        -- Slight position adjustment to pull selected card forward
-        y = y - 10  -- Pull selected card forward
+        scale = scale * 1.1  -- Make selected card more prominent
+        -- Position adjustment to pull selected card forward
+        y = y - 15  -- Pull selected card forward more
     end
 
     -- Calculate opacity/visibility based on position
@@ -126,6 +126,11 @@ function DialRenderer:getCardTransform(cardIndex, selectedCard, totalCards)
 
     -- Calculate draw order (cards at back should be drawn first)
     local drawOrder = -math.cos(radians)  -- -1 to 1, where -1 is back, 1 is front
+
+    -- Ensure selected card is always drawn last (on top)
+    if cardIndex == selectedCard then
+        drawOrder = 2  -- Higher than any possible cos value (-1 to 1)
+    end
 
     return {
         x = x,
