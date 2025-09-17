@@ -13,6 +13,7 @@ GameState.MODES = {
     QUIZ_NUMBER_TO_CARD = "quiz_number_to_card",
     QUIZ_CARD_TO_NUMBER = "quiz_card_to_number",
     STUDY = "study",
+    SIMON = "simon",
     MENU = "menu",
     HIGH_SCORES = "high_scores",
     SETTINGS = "settings",
@@ -42,6 +43,20 @@ function GameState:new()
 
     -- Mistake review mode
     state.mistakeReviewMode = nil  -- Will be initialized when starting mistake review
+
+    -- Simon mode state
+    state.simonMode = {
+        sequence = {},        -- Current sequence of positions to remember
+        playerIndex = 1,      -- Current position in sequence the player is at
+        currentRound = 0,     -- Current round (length of sequence)
+        showingSequence = false,  -- Whether we're showing the sequence
+        sequenceIndex = 1,    -- Current index when showing sequence
+        displayTimer = 0,     -- Timer for showing each card
+        phase = "SHOWING",    -- SHOWING, WAITING, INPUT, FEEDBACK
+        isCorrect = true,     -- Track if player is correct so far
+        maxRound = 0,         -- Track best performance
+        selectedInput = "card"  -- "card" or "number" - what player is selecting
+    }
 
     -- UI state (temporary, not part of session)
     state.selectedAnswer = 1  -- Currently selected answer (card index or position)
@@ -495,7 +510,8 @@ function GameState:saveSettings()
     local settings = {
         soundEnabled = self.soundEnabled,
         crankSensitivity = self.crankSensitivity,
-        lastSelectedMenuMode = self.lastSelectedMenuMode
+        lastSelectedMenuMode = self.lastSelectedMenuMode,
+        simonMaxRound = self.simonMode.maxRound
     }
     pd.datastore.write(settings, "settings")
 end
@@ -507,6 +523,7 @@ function GameState:loadSettings()
         self.soundEnabled = settings.soundEnabled ~= false  -- Default to true
         self.crankSensitivity = settings.crankSensitivity or 1.0
         self.lastSelectedMenuMode = settings.lastSelectedMenuMode or 1
+        self.simonMode.maxRound = settings.simonMaxRound or 0
     end
 end
 

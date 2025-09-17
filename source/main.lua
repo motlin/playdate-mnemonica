@@ -412,6 +412,7 @@ local function startSelectedMode()
         GameState.MODES.QUIZ_NUMBER_TO_CARD,
         GameState.MODES.QUIZ_CARD_TO_NUMBER,
         GameState.MODES.STUDY,
+        GameState.MODES.SIMON,
         GameState.MODES.HIGH_SCORES,
         GameState.MODES.SETTINGS
     }
@@ -440,6 +441,22 @@ local function startSelectedMode()
         gameState.currentMode = GameState.MODES.STUDY
         studyModePosition = 1
         lastCrankPosition = pd.getCrankPosition()
+    elseif selectedMode == GameState.MODES.SIMON then
+        -- Simon mode
+        gameState.currentMode = GameState.MODES.SIMON
+        -- Initialize Simon mode
+        gameState.simonMode.sequence = {}
+        gameState.simonMode.playerIndex = 1
+        gameState.simonMode.currentRound = 0
+        gameState.simonMode.phase = "SHOWING"
+        gameState.simonMode.sequenceIndex = 1
+        gameState.simonMode.displayTimer = 0
+        gameState.simonMode.isCorrect = true
+        gameState.simonMode.selectedInput = "card"
+        selectedCard = 1
+        selectedNumber = 1
+        -- Start first round
+        startSimonRound()
     elseif selectedMode == GameState.MODES.HIGH_SCORES then
         -- High scores screen
         gameState.currentMode = GameState.MODES.HIGH_SCORES
@@ -1019,8 +1036,16 @@ local function drawHighScores()
         gfx.drawTextAligned("No scores yet", 200, 150, kTextAlignment.center)
     end
 
+    -- Simon Mode section
+    gfx.drawTextAligned("-- Simon Mode --", 200, 190, kTextAlignment.center)
+    if gameState.simonMode.maxRound > 0 then
+        gfx.drawTextAligned("Best: Round " .. gameState.simonMode.maxRound, 200, 205, kTextAlignment.center)
+    else
+        gfx.drawTextAligned("No scores yet", 200, 205, kTextAlignment.center)
+    end
+
     -- Instructions
-    gfx.drawTextAligned("Press (B) to return to menu", 200, 210, kTextAlignment.center)
+    gfx.drawTextAligned("Press (B) to return to menu", 200, 225, kTextAlignment.center)
 end
 
 local function drawSettings()
@@ -1117,9 +1142,9 @@ local function updateMenuSelectionWithCrank()
     end
     crankVelocity = delta
 
-    -- Map crank position to menu items (5 items total)
-    local numMenuItems = 5
-    local degreesPerItem = 360 / numMenuItems  -- 72 degrees per item
+    -- Map crank position to menu items (6 items total)
+    local numMenuItems = 6
+    local degreesPerItem = 360 / numMenuItems  -- 60 degrees per item
     local effectiveDegreesPerItem = degreesPerItem / gameState.crankSensitivity
 
     -- Calculate which menu item we should be on based on angle
@@ -1170,6 +1195,7 @@ local function drawMenu()
         "Number to Card Quiz",
         "Card to Number Quiz",
         "Study Mode",
+        "Simon Mode",
         "High Scores",
         "Settings"
     }
@@ -1247,6 +1273,312 @@ local function updateMenuItems()
         -- Update menu to ensure it stays consistent
         updateMenuItems()
     end)
+end
+
+-- Simon Mode Functions
+local function startSimonRound()
+    gameState.simonMode.currentRound = gameState.simonMode.currentRound + 1
+
+    -- Add a new random position to the sequence
+    local newPosition = math.random(1, 52)
+    table.insert(gameState.simonMode.sequence, newPosition)
+
+    -- Reset for showing sequence
+    gameState.simonMode.phase = "SHOWING"
+    gameState.simonMode.sequenceIndex = 1
+    gameState.simonMode.displayTimer = 0
+    gameState.simonMode.playerIndex = 1
+    gameState.simonMode.selectedInput = "card"
+end
+
+local function drawSimonShowing()
+    gfx.clear()
+
+    -- Title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Simon Mode - Round " .. gameState.simonMode.currentRound, 200, 10, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Show current card in sequence
+    local position = gameState.simonMode.sequence[gameState.simonMode.sequenceIndex]
+    local card = mnemonicaStack[position]
+
+    -- Draw position number
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Position " .. position, 200, 60, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Draw the card
+    drawCard(card, 200, 110, 1.5)
+
+    -- Progress indicator
+    gfx.drawTextAligned("Card " .. gameState.simonMode.sequenceIndex .. " of " .. gameState.simonMode.currentRound,
+                       200, 200, kTextAlignment.center)
+end
+
+local function drawSimonWaiting()
+    gfx.clear()
+
+    -- Title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Simon Mode - Round " .. gameState.simonMode.currentRound, 200, 10, kTextAlignment.center)
+    gfx.setFont()
+
+    gfx.drawTextAligned("Get ready to repeat the sequence!", 200, 100, kTextAlignment.center)
+    gfx.drawTextAligned("Press A to begin", 200, 130, kTextAlignment.center)
+end
+
+local function drawSimonInput()
+    gfx.clear()
+
+    -- Title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Simon Mode - Round " .. gameState.simonMode.currentRound, 200, 10, kTextAlignment.center)
+    gfx.setFont()
+
+    -- Show which card/position in sequence we're asking for
+    gfx.drawTextAligned("Enter card " .. gameState.simonMode.playerIndex .. " of " .. gameState.simonMode.currentRound,
+                       200, 35, kTextAlignment.center)
+
+    local currentPosition = gameState.simonMode.sequence[gameState.simonMode.playerIndex]
+
+    if gameState.simonMode.selectedInput == "card" then
+        -- Player is selecting the card
+        gfx.drawTextAligned("What card is at position " .. currentPosition .. "?", 200, 55, kTextAlignment.center)
+
+        -- Use the dial renderer to show card selection
+        dialRenderer:draw(200, 140, selectedCard, 160, 80)
+
+        gfx.drawTextAligned("Crank to select card | A: Confirm", 200, 210, kTextAlignment.center)
+        gfx.drawTextAligned("B: Cancel", 200, 225, kTextAlignment.center)
+    else
+        -- Player is selecting the position number
+        local cardName = mnemonicaStack[currentPosition]
+        gfx.drawTextAligned("What position is " .. cardName .. "?", 200, 55, kTextAlignment.center)
+
+        -- Use the number dial renderer
+        numberDialRenderer:draw(200, 140, selectedNumber, 160, 80)
+
+        gfx.drawTextAligned("Crank to select position | A: Confirm", 200, 210, kTextAlignment.center)
+        gfx.drawTextAligned("B: Cancel", 200, 225, kTextAlignment.center)
+    end
+end
+
+local function drawSimonFeedback()
+    gfx.clear()
+
+    -- Title
+    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
+    gfx.drawTextAligned("Simon Mode", 200, 10, kTextAlignment.center)
+    gfx.setFont()
+
+    if gameState.simonMode.isCorrect then
+        gfx.drawTextAligned("Correct!", 200, 60, kTextAlignment.center)
+
+        if gameState.simonMode.playerIndex >= gameState.simonMode.currentRound then
+            -- Completed the round
+            gfx.drawTextAligned("Round " .. gameState.simonMode.currentRound .. " Complete!", 200, 90, kTextAlignment.center)
+            gfx.drawTextAligned("Press A to continue to Round " .. (gameState.simonMode.currentRound + 1), 200, 120, kTextAlignment.center)
+        else
+            -- More cards to go in this round
+            gfx.drawTextAligned("Press A to continue", 200, 90, kTextAlignment.center)
+        end
+    else
+        -- Incorrect - game over
+        gfx.drawTextAligned("Incorrect!", 200, 60, kTextAlignment.center)
+        gfx.drawTextAligned("Game Over", 200, 90, kTextAlignment.center)
+
+        -- Show the correct answer
+        local position = gameState.simonMode.sequence[gameState.simonMode.playerIndex]
+        local card = mnemonicaStack[position]
+        gfx.drawTextAligned("Position " .. position .. " is " .. card, 200, 120, kTextAlignment.center)
+
+        -- Show score
+        local completedRounds = gameState.simonMode.currentRound - 1
+        local partialCards = gameState.simonMode.playerIndex - 1
+        gfx.drawTextAligned("Completed: " .. completedRounds .. " rounds + " .. partialCards .. " cards", 200, 150, kTextAlignment.center)
+
+        -- Update max round if needed
+        if gameState.simonMode.currentRound > gameState.simonMode.maxRound then
+            gameState.simonMode.maxRound = gameState.simonMode.currentRound
+            gameState:saveSettings()  -- Save the new best
+            gfx.drawTextAligned("New best: Round " .. gameState.simonMode.maxRound .. "!", 200, 170, kTextAlignment.center)
+        else
+            gfx.drawTextAligned("Best: Round " .. gameState.simonMode.maxRound, 200, 170, kTextAlignment.center)
+        end
+
+        gfx.drawTextAligned("Press A to play again | B: Main Menu", 200, 200, kTextAlignment.center)
+    end
+end
+
+local function checkSimonAnswer()
+    local position = gameState.simonMode.sequence[gameState.simonMode.playerIndex]
+
+    if gameState.simonMode.selectedInput == "card" then
+        -- Check if selected card matches
+        local correctCard = mnemonicaStack[position]
+        local selectedCardName = uspccOrder[selectedCard]
+        gameState.simonMode.isCorrect = (selectedCardName == correctCard)
+    else
+        -- Check if selected position matches
+        gameState.simonMode.isCorrect = (selectedNumber == position)
+    end
+
+    if gameState.simonMode.isCorrect then
+        if gameState.soundEnabled then sounds.correct:play() end
+
+        if gameState.simonMode.playerIndex < gameState.simonMode.currentRound then
+            -- Move to next card in sequence
+            gameState.simonMode.playerIndex = gameState.simonMode.playerIndex + 1
+            -- Randomly choose whether to ask for card or position
+            gameState.simonMode.selectedInput = math.random() < 0.5 and "card" or "number"
+        end
+    else
+        if gameState.soundEnabled then sounds.incorrect:play() end
+    end
+
+    gameState.simonMode.phase = "FEEDBACK"
+end
+
+local function updateSimonMode()
+    if gameState.simonMode.phase == "SHOWING" then
+        -- Auto-advance through sequence display
+        gameState.simonMode.displayTimer = gameState.simonMode.displayTimer + 1
+
+        if gameState.simonMode.displayTimer > 90 then  -- Show each card for 1.5 seconds at 60fps
+            gameState.simonMode.displayTimer = 0
+            gameState.simonMode.sequenceIndex = gameState.simonMode.sequenceIndex + 1
+
+            if gameState.simonMode.sequenceIndex > gameState.simonMode.currentRound then
+                -- Done showing sequence
+                gameState.simonMode.phase = "WAITING"
+            end
+        end
+
+        drawSimonShowing()
+
+        -- Allow skip with A button
+        if pd.buttonJustPressed(pd.kButtonA) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.simonMode.sequenceIndex = gameState.simonMode.sequenceIndex + 1
+            gameState.simonMode.displayTimer = 0
+
+            if gameState.simonMode.sequenceIndex > gameState.simonMode.currentRound then
+                gameState.simonMode.phase = "WAITING"
+            end
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            -- Back to menu
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()
+        end
+
+    elseif gameState.simonMode.phase == "WAITING" then
+        drawSimonWaiting()
+
+        if pd.buttonJustPressed(pd.kButtonA) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.simonMode.phase = "INPUT"
+            gameState.simonMode.playerIndex = 1
+            -- Randomly choose whether to ask for card or position for first one
+            gameState.simonMode.selectedInput = math.random() < 0.5 and "card" or "number"
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            -- Back to menu
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()
+        end
+
+    elseif gameState.simonMode.phase == "INPUT" then
+        -- Update selection based on input type
+        if gameState.simonMode.selectedInput == "card" then
+            updateSelectedCard()
+
+            -- D-pad navigation for card selection
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard - 1
+                if selectedCard < 1 then selectedCard = 52 end
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard + 1
+                if selectedCard > 52 then selectedCard = 1 end
+            elseif pd.buttonJustPressed(pd.kButtonLeft) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard - 13
+                if selectedCard < 1 then selectedCard = selectedCard + 52 end
+            elseif pd.buttonJustPressed(pd.kButtonRight) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedCard = selectedCard + 13
+                if selectedCard > 52 then selectedCard = selectedCard - 52 end
+            end
+        else
+            updateSelectedNumber()
+
+            -- D-pad navigation for number selection
+            if pd.buttonJustPressed(pd.kButtonUp) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber - 1
+                if selectedNumber < 1 then selectedNumber = 52 end
+            elseif pd.buttonJustPressed(pd.kButtonDown) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber + 1
+                if selectedNumber > 52 then selectedNumber = 1 end
+            elseif pd.buttonJustPressed(pd.kButtonLeft) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber - 10
+                if selectedNumber < 1 then selectedNumber = selectedNumber + 52 end
+            elseif pd.buttonJustPressed(pd.kButtonRight) then
+                if gameState.soundEnabled then sounds.crankTick:play() end
+                selectedNumber = selectedNumber + 10
+                if selectedNumber > 52 then selectedNumber = selectedNumber - 52 end
+            end
+        end
+
+        drawSimonInput()
+
+        if pd.buttonJustPressed(pd.kButtonA) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            checkSimonAnswer()
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            -- Back to menu
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()
+        end
+
+    elseif gameState.simonMode.phase == "FEEDBACK" then
+        drawSimonFeedback()
+
+        if pd.buttonJustPressed(pd.kButtonA) then
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+
+            if gameState.simonMode.isCorrect then
+                if gameState.simonMode.playerIndex >= gameState.simonMode.currentRound then
+                    -- Start next round
+                    startSimonRound()
+                else
+                    -- Continue current round
+                    gameState.simonMode.phase = "INPUT"
+                end
+            else
+                -- Restart game
+                gameState.simonMode.sequence = {}
+                gameState.simonMode.playerIndex = 1
+                gameState.simonMode.currentRound = 0
+                gameState.simonMode.phase = "SHOWING"
+                gameState.simonMode.sequenceIndex = 1
+                gameState.simonMode.displayTimer = 0
+                gameState.simonMode.isCorrect = true
+                startSimonRound()
+            end
+        elseif pd.buttonJustPressed(pd.kButtonB) then
+            -- Back to menu
+            if gameState.soundEnabled then sounds.buttonPress:play() end
+            gameState.currentMode = GameState.MODES.MENU
+            menuCrankState.lastAngle = pd.getCrankPosition()
+        end
+    end
 end
 
 function playdate.update()
@@ -1408,15 +1740,19 @@ function playdate.update()
         if pd.buttonJustPressed(pd.kButtonUp) then
             if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection - 1
-            if menuSelection < 1 then menuSelection = 5 end
+            if menuSelection < 1 then menuSelection = 6 end
         elseif pd.buttonJustPressed(pd.kButtonDown) then
             if gameState.soundEnabled then sounds.menuMove:play() end
             menuSelection = menuSelection + 1
-            if menuSelection > 5 then menuSelection = 1 end
+            if menuSelection > 6 then menuSelection = 1 end
         elseif pd.buttonJustPressed(pd.kButtonA) then
             if gameState.soundEnabled then sounds.buttonPress:play() end
             startSelectedMode()
         end
+
+    elseif gameState.currentMode == GameState.MODES.SIMON then
+        -- Simon mode
+        updateSimonMode()
 
     elseif gameState.currentMode == GameState.MODES.STUDY then
         -- Study mode - update position based on crank
