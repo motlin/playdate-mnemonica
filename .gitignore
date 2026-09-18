@@ -1,3 +1,6 @@
 # 🏗️ Build output
 builds/
 *.pdx
+
+# 🔐 Environment configuration
+.envrc
