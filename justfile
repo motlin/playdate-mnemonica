@@ -2,6 +2,7 @@ project_name := "Mnemonica"
 source_dir := "source"
 output_dir := "builds"
 pdx_file := output_dir / "Mnemonica.pdx"
+luarocks_bin := env_var("HOME") / ".luarocks/bin"
 
 # 📋 List all recipes (default)
 default:
@@ -20,5 +21,24 @@ run: build
 clean:
     rm -rf "{{ output_dir }}"
 
+# 🧪 Run host-side specs
+test:
+    "{{luarocks_bin}}/busted"
+
+# 🔍 Lint Lua sources
+lint:
+    "{{luarocks_bin}}/luacheck" .
+
+# 📸 Capture every screen from the Simulator
+screenshots output="builds/screenshots":
+    tools/screenshots/run.sh tour "{{output}}"
+    tools/screenshots/run.sh complete "{{output}}"
+    tools/screenshots/run.sh complete_many "{{output}}"
+    tools/screenshots/run.sh perfect "{{output}}"
+    tools/screenshots/run.sh review "{{output}}"
+
+# 💨 Play through the game in the Simulator and fail on any crash
+smoke: screenshots
+
 # ✅ Pre-commit checks
-precommit: build
+precommit: test build
