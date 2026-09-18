@@ -1,6 +1,10 @@
 std = "lua54"
 include_files = { "source/**/*.lua", "spec/**/*.lua" }
-globals = { "playdate" }
+globals = {
+    "playdate",
+    "GameState", "QuizSession", "MistakeReviewMode",
+    "DialRenderer", "NumberDialRenderer", "UIHelpers",
+}
 read_globals = { "import", "kTextAlignment" }
 max_line_length = false
 

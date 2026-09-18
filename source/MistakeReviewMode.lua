@@ -3,7 +3,7 @@
 -- Phase 2: Re-quiz on mistake cards
 local pd <const> = playdate
 
-local MistakeReviewMode = {}
+MistakeReviewMode = {}
 MistakeReviewMode.__index = MistakeReviewMode
 
 -- Review phases
@@ -45,7 +45,7 @@ function MistakeReviewMode:getCurrentStudyMistake()
     return nil
 end
 
--- Move to next study card
+-- Move to next study card. Returns false once the study phase is over and the re-quiz is ready.
 function MistakeReviewMode:nextStudyCard()
     if self.currentPhase ~= MistakeReviewMode.PHASES.STUDY then
         return false
@@ -61,9 +61,8 @@ function MistakeReviewMode:nextStudyCard()
 
     -- Check if we've studied all mistakes
     if self.studyIndex > #self.mistakes then
-        -- Move to quiz phase
         self:startQuizPhase()
-        return true
+        return false
     end
 
     return true
@@ -89,7 +88,6 @@ function MistakeReviewMode:startQuizPhase()
     self.currentPhase = MistakeReviewMode.PHASES.QUIZ
 
     -- Create a quiz session with just the mistake positions
-    local QuizSession = import "QuizSession"
     local positions = {}
     local seen = {}
 
@@ -188,5 +186,3 @@ function MistakeReviewMode:getSummary()
 
     return summary
 end
-
-return MistakeReviewMode

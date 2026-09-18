@@ -3,7 +3,7 @@
 
 local pd <const> = playdate
 
-local QuizSession = {}
+QuizSession = {}
 QuizSession.__index = QuizSession
 
 function QuizSession:new(mode, totalQuestions)
@@ -330,5 +330,3 @@ function QuizSession:import(data)
 
     return true
 end
-
-return QuizSession

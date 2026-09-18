@@ -2,10 +2,10 @@
 -- Handles all game state tracking including mode, score, timer, progress, etc.
 
 local pd <const> = playdate
-local QuizSession = import "QuizSession"
-local MistakeReviewMode = import "MistakeReviewMode"
+import "QuizSession"
+import "MistakeReviewMode"
 
-local GameState = {}
+GameState = {}
 GameState.__index = GameState
 
 -- Game modes
@@ -736,31 +736,29 @@ function GameState:createReviewSession()
     return self:startMistakeReview()
 end
 
--- Transition from study phase to quiz phase in mistake review
-function GameState:transitionToMistakeQuiz()
-    if self.mistakeReviewMode and
-       self.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.STUDY then
-        -- Start the quiz phase
-        local quizSession = self.mistakeReviewMode:startQuizPhase()
-        if quizSession then
-            -- Set the review quiz session as current (original is preserved)
-            self.currentSession = quizSession
-            self.quizState = GameState.QUIZ_STATES.QUESTION
-
-            -- Sync legacy fields
-            self:syncLegacyFields()
-
-            -- Reset UI state
-            self.selectedAnswer = 1
-            self.correctAnswer = ""
-            self.userAnswer = ""
-            self.userWasCorrect = false
-            self.userPassed = false
-
-            return true
-        end
+-- The quiz being answered. During mistake review this is the mode of the quiz under review.
+function GameState:getQuizMode()
+    if self.currentMode == GameState.MODES.MISTAKE_REVIEW then
+        return self.mistakeReviewMode.originalMode
     end
-    return false
+    return self.currentMode
+end
+
+-- Advance the study phase of a mistake review. After the last mistake, the re-quiz session
+-- built by MistakeReviewMode becomes the current session.
+function GameState:advanceMistakeStudy()
+    if self.mistakeReviewMode:nextStudyCard() then
+        return
+    end
+
+    self.currentSession = self.mistakeReviewMode.quizSession
+    self.quizState = GameState.QUIZ_STATES.QUESTION
+
+    self.selectedAnswer = 1
+    self.correctAnswer = ""
+    self.userAnswer = ""
+    self.userWasCorrect = false
+    self.userPassed = false
 end
 
 -- Get session summary
@@ -807,5 +805,3 @@ function GameState:reset()
     self.crankSensitivity = savedCrankSensitivity
     self.cardStats = savedCardStats
 end
-
-return GameState

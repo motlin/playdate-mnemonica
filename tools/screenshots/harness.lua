@@ -34,6 +34,9 @@ do
         coroutine.yield()
     end
     local function setCrank(deg) crank = deg % 360 end
+    local function expect(condition, message)
+        if not condition then error("expectation failed: " .. message, 2) end
+    end
     local function indexOf(list, value)
         for i, v in ipairs(list) do if v == value then return i end end
     end
@@ -41,7 +44,7 @@ do
     -- Answer the current question. correct=true picks the right answer.
     local function answer(correct, shotName)
         local pos = gameState.currentPosition
-        if gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        if gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
             selectedNumber = correct and pos or (pos % 52) + 1
         else
             local right = indexOf(uspccOrder, mnemonicaStack[pos])
@@ -152,16 +155,22 @@ do
         completeQuiz(1, 3, "n2c-3wrong")
         completionScreenState.selectedOption = 2; frames(2); press(pd.kButtonA, 4); shot("mistakes-list")
         press(pd.kButtonA, 4); shot("review-study-1")
+        expect(gameState.currentMode == GameState.MODES.MISTAKE_REVIEW, "review mode started")
         press(pd.kButtonA, 4); shot("review-study-2")
         press(pd.kButtonB, 4); shot("review-study-back")
         press(pd.kButtonA, 4); press(pd.kButtonA, 4); shot("review-study-3")
-        press(pd.kButtonA, 4); shot("review-after-last-study")
-        log("phase=" .. tostring(gameState.mistakeReviewMode and gameState.mistakeReviewMode.currentPhase)
-            .. " mode=" .. tostring(gameState.currentMode) .. " quizState=" .. tostring(gameState.quizState))
-        for i = 1, 4 do
-            press(pd.kButtonA, 6); shot("review-next-a" .. i)
-            log("a" .. i .. " mode=" .. tostring(gameState.currentMode) .. " quizState=" .. tostring(gameState.quizState))
-        end
+        press(pd.kButtonA, 4); shot("review-quiz-question-1")
+        expect(gameState.quizState == GameState.QUIZ_STATES.QUESTION, "re-quiz started after last study card")
+        expect(gameState.currentSession.totalQuestions == 3, "re-quiz asks only the 3 mistakes")
+        answer(true, "review-quiz-feedback-correct")
+        answer(false, "review-quiz-feedback-wrong")
+        answer(true)
+        frames(4); shot("review-complete")
+        expect(gameState.quizState == GameState.QUIZ_STATES.COMPLETE, "re-quiz completes")
+        expect(gameState.currentSession.statistics.score == 2, "re-quiz scored 2 of 3")
+        press(pd.kButtonA, 4); shot("back-to-summary")
+        expect(gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD, "returns to original summary")
+        expect(gameState.currentSession.totalQuestions == 52, "original session restored")
     end
 
     scenarios.perfect = function()

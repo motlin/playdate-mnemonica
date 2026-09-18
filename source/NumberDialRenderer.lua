@@ -4,7 +4,7 @@
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
-local NumberDialRenderer = {}
+NumberDialRenderer = {}
 NumberDialRenderer.__index = NumberDialRenderer
 
 function NumberDialRenderer:new()
@@ -290,5 +290,3 @@ function NumberDialRenderer:drawFrame()
     gfx.drawLine(lineX1, 40, lineX1, 200)
     gfx.drawLine(lineX2, 40, lineX2, 200)
 end
-
-return NumberDialRenderer

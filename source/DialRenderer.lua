@@ -4,7 +4,7 @@
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
-local DialRenderer = {}
+DialRenderer = {}
 DialRenderer.__index = DialRenderer
 
 function DialRenderer:new(cardImages, cardWidth, cardHeight)
@@ -346,5 +346,3 @@ function DialRenderer:drawFrame()
         height
     )
 end
-
-return DialRenderer

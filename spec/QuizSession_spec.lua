@@ -1,5 +1,5 @@
 local stub = require("spec.support.playdate_stub")
-local QuizSession = require("QuizSession")
+import "QuizSession"
 
 describe("QuizSession", function()
     before_each(function() stub.reset() end)

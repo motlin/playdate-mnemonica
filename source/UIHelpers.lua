@@ -1,7 +1,7 @@
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
-local UIHelpers = {}
+UIHelpers = {}
 
 -- Draw a menu item with consistent selection highlighting
 -- Uses outlined rectangle with arrow indicators for selected items
@@ -48,5 +48,3 @@ function UIHelpers.drawMenuList(items, x, startY, width, selectedIndex, spacing)
         UIHelpers.drawMenuItem(item, x, y, width, i == selectedIndex)
     end
 end
-
-return UIHelpers

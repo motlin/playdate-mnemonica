@@ -6,11 +6,11 @@ local gfx <const> = playdate.graphics
 local snd <const> = playdate.sound
 
 -- Import modules
-local GameState = import "GameState"
-local DialRenderer = import "DialRenderer"
-local NumberDialRenderer = import "NumberDialRenderer"
-local MistakeReviewMode = import "MistakeReviewMode"
-local UIHelpers = import "UIHelpers"
+import "GameState"
+import "DialRenderer"
+import "NumberDialRenderer"
+import "MistakeReviewMode"
+import "UIHelpers"
 
 -- Initialize GameState manager
 local gameState = GameState:new()
@@ -165,6 +165,13 @@ local settingsSelection = 1 -- Currently selected settings item
 local showingCredits = false -- Track if we're showing the credits screen
 local studyModePosition = 1 -- Current position in study mode (1-52)
 
+-- UI state for completion screen
+local completionScreenState = {
+    showingMistakes = false,
+    mistakeScrollOffset = 0,
+    selectedOption = 1  -- 1=Play Again, 2=Review Mistakes, 3=Main Menu
+}
+
 -- Crank handling
 local lastCrankPosition = 0
 local degreesPerCard = 360 / 52  -- Each card gets approximately 6.92 degrees
@@ -313,7 +320,7 @@ local function updateSelectedNumber()
 end
 
 local function checkAnswer()
-    if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+    if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         -- Number to Card mode: Check if selected card matches the position
         local correctCard = mnemonicaStack[gameState.currentPosition]
         local selectedCardName = uspccOrder[selectedCard]
@@ -321,7 +328,7 @@ local function checkAnswer()
         gameState.correctAnswer = correctCard
         gameState:submitAnswer(selectedCardName, false)
         showingCorrectAnswer = true
-    elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+    elseif gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
         -- Card to Number mode: Check if selected number matches the card's position
         local correctPosition = gameState.currentPosition
 
@@ -337,20 +344,6 @@ local function checkAnswer()
     end
 end
 
-local function passQuestion()
-    if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-        local correctCard = mnemonicaStack[gameState.currentPosition]
-        gameState.correctAnswer = correctCard
-    elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-        gameState.correctAnswer = tostring(gameState.currentPosition)
-    end
-
-    gameState:submitAnswer("PASSED", true)
-    showingCorrectAnswer = true
-
-    if gameState.soundEnabled then sounds.incorrect:play() end
-end
-
 local function nextQuestion()
     showingCorrectAnswer = false
     gameState:nextQuestion()
@@ -359,9 +352,9 @@ local function nextQuestion()
         if gameState.soundEnabled then sounds.sessionComplete:play() end
     else
         -- Set correct answer for next question
-        if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+        if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
             gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
-        elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+        elseif gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
             gameState.correctAnswer = tostring(gameState.currentPosition)
         end
     end
@@ -594,7 +587,7 @@ local function drawFeedback()
     local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
-    if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+    if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         -- Number to Card mode feedback
         if gameState.userWasCorrect then
             gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
@@ -623,7 +616,7 @@ local function drawFeedback()
             gfx.drawTextAligned("Correct:", 300, 40, kTextAlignment.center)
             drawCard(gameState.correctAnswer, 300, 100, 1)
         end
-    elseif gameState.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
+    elseif gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
         -- Card to Number mode feedback
         local questionCard = mnemonicaStack[gameState.currentPosition]
 
@@ -655,25 +648,6 @@ local function drawFeedback()
 
     -- Draw continue instruction
     gfx.drawTextAligned("(A) Continue", 200, 200, kTextAlignment.center)
-end
-
--- UI state for completion screen
-local completionScreenState = {
-    showingMistakes = false,
-    mistakeScrollOffset = 0,
-    selectedOption = 1  -- 1=Play Again, 2=Review Mistakes, 3=Main Menu
-}
-
-local function drawComplete()
-    gfx.clear()
-
-    if completionScreenState.showingMistakes then
-        -- Draw mistakes list view
-        drawMistakesList()
-    else
-        -- Draw main completion summary
-        drawCompletionSummary()
-    end
 end
 
 local function drawCompletionSummary()
@@ -824,6 +798,18 @@ local function drawMistakesList()
 
     -- Instructions
     gfx.drawTextAligned("B: Back | A: Start Review Quiz", 200, 220, kTextAlignment.center)
+end
+
+local function drawComplete()
+    gfx.clear()
+
+    if completionScreenState.showingMistakes then
+        -- Draw mistakes list view
+        drawMistakesList()
+    else
+        -- Draw main completion summary
+        drawCompletionSummary()
+    end
 end
 
 local function updateStudyModePosition()
@@ -1623,23 +1609,15 @@ function playdate.update()
                 if pd.buttonJustPressed(pd.kButtonA) then
                     if gameState.soundEnabled then sounds.buttonPress:play() end
 
-                    -- Move to next study card
-                    if not gameState.mistakeReviewMode:nextStudyCard() then
-                        -- Study phase complete, check if we're transitioning to quiz
-                        if gameState.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.QUIZ then
-                            -- Transition to quiz phase
-                            gameState:transitionToMistakeQuiz()
+                    gameState:advanceMistakeStudy()
 
-                            -- Set correct answer for first question
-                            if gameState.currentMode == GameState.MODES.MISTAKE_REVIEW then
-                                if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-                                    gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
-                                    selectedCard = 1
-                                else
-                                    gameState.correctAnswer = tostring(gameState.currentPosition)
-                                    selectedNumber = 1
-                                end
-                            end
+                    if gameState.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.QUIZ then
+                        if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+                            gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+                            selectedCard = 1
+                        else
+                            gameState.correctAnswer = tostring(gameState.currentPosition)
+                            selectedNumber = 1
                         end
                     end
                 elseif pd.buttonJustPressed(pd.kButtonB) then
