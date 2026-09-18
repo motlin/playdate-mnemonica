@@ -68,14 +68,11 @@ function GameState:new()
     -- Pause state
     state.isPaused = false
 
-    -- Legacy fields for compatibility (lazily populated from session when needed)
-    state._legacyFieldsCache = nil  -- Cache for legacy field access
-
     -- High scores
-    state.highScores = {
-        numberToCard = { bestScore = 0, bestTime = math.huge },
-        cardToNumber = { bestScore = 0, bestTime = math.huge }
-    }
+    state.highScores = GameState.emptyHighScores()
+
+    -- Outcome of the most recently finished quiz: { isNewBest, previousBest }
+    state.lastResult = nil
 
     -- Settings
     state.soundEnabled = true
@@ -102,50 +99,6 @@ function GameState:new()
     -- Load saved settings including last selected menu mode
     state:loadSettings()
 
-    -- Add metamethod for lazy loading of legacy fields
-    local mt = getmetatable(state) or {}
-    mt.__index = function(self, key)
-        -- Legacy field access - get from session if available
-        if key == "score" then
-            return self.currentSession and self.currentSession.statistics.score or 0
-        elseif key == "questionsAnswered" then
-            return self.currentSession and self.currentSession.statistics.questionsAnswered or 0
-        elseif key == "questionsCorrect" then
-            return self.currentSession and self.currentSession.statistics.questionsCorrect or 0
-        elseif key == "questionsIncorrect" then
-            return self.currentSession and self.currentSession.statistics.questionsIncorrect or 0
-        elseif key == "questionsPassed" then
-            return self.currentSession and self.currentSession.statistics.questionsPassed or 0
-        elseif key == "mistakes" then
-            return self.currentSession and self.currentSession.mistakes or {}
-        elseif key == "currentPosition" then
-            if self.currentSession then
-                local question = self.currentSession:getCurrentQuestion()
-                return question and question.position or 1
-            end
-            return 1
-        elseif key == "questionIndex" then
-            return self.currentSession and self.currentSession.currentQuestionIndex or 1
-        elseif key == "elapsedTime" then
-            return self.currentSession and self.currentSession:getElapsedTime() or 0
-        elseif key == "startTime" then
-            return self.currentSession and self.currentSession.startTime or 0
-        elseif key == "questionOrder" then
-            if self.currentSession then
-                local order = {}
-                for i, q in ipairs(self.currentSession.questions) do
-                    order[i] = q.position
-                end
-                return order
-            end
-            return {}
-        else
-            -- Use original __index behavior
-            return rawget(GameState, key)
-        end
-    end
-    setmetatable(state, mt)
-
     return state
 end
 
@@ -167,10 +120,7 @@ function GameState:startQuiz(mode, useSpacedRepetition)
 
     if useSpacedRepetition and self:hasEnoughDataForSpacedRepetition() then
         -- Get spaced repetition order
-        self:initializeSpacedRepetitionOrder()
-        for i = 1, 52 do
-            positions[i] = self.questionOrder[i]
-        end
+        positions = self:buildSpacedRepetitionOrder()
         self.currentSession:initializeQuestions(positions, false)  -- false = don't shuffle again
         self.usingSpacedRepetition = true
     else
@@ -182,9 +132,6 @@ function GameState:startQuiz(mode, useSpacedRepetition)
         self.usingSpacedRepetition = false
     end
 
-    -- Update legacy fields for compatibility
-    self:syncLegacyFields()
-
     -- Reset UI state
     self.selectedAnswer = 1
     self.correctAnswer = ""
@@ -192,40 +139,6 @@ function GameState:startQuiz(mode, useSpacedRepetition)
     self.userWasCorrect = false
     self.userPassed = false
     self.isPaused = false
-end
-
--- Legacy compatibility function (now a no-op due to lazy loading)
-function GameState:syncLegacyFields()
-    -- Fields are now lazily loaded via __index metamethod
-    -- This function is kept for compatibility but does nothing
-end
-
--- Initialize shuffled question order using Fisher-Yates algorithm
--- This is now mostly handled by QuizSession, but kept for compatibility
-function GameState:initializeQuestionOrder(useSpacedRepetition)
-    if self.currentSession then
-        -- Session handles its own question order
-        return
-    end
-
-    -- Legacy implementation
-    self.questionOrder = {}
-
-    if useSpacedRepetition and self:hasEnoughDataForSpacedRepetition() then
-        self:initializeSpacedRepetitionOrder()
-    else
-        for i = 1, self.totalQuestions do
-            self.questionOrder[i] = i
-        end
-
-        for i = #self.questionOrder, 2, -1 do
-            local j = math.random(1, i)
-            self.questionOrder[i], self.questionOrder[j] = self.questionOrder[j], self.questionOrder[i]
-        end
-    end
-
-    self.questionIndex = 1
-    self.currentPosition = self.questionOrder[1]
 end
 
 -- Check if we have enough data to use spaced repetition
@@ -240,7 +153,7 @@ end
 
 -- Initialize question order using spaced repetition algorithm
 -- This prioritizes cards the user struggles with while maintaining some randomness
-function GameState:initializeSpacedRepetitionOrder()
+function GameState:buildSpacedRepetitionOrder()
     -- Create weighted pool based on difficulty and time since last asked
     local weightedPool = {}
     local currentTime = pd.getCurrentTimeMilliseconds() / 1000
@@ -276,7 +189,7 @@ function GameState:initializeSpacedRepetitionOrder()
     table.sort(weightedPool, function(a, b) return a.weight > b.weight end)
 
     -- Create question order with bias towards difficult cards
-    self.questionOrder = {}
+    local questionOrder = {}
     local remaining = {}
     for _, item in ipairs(weightedPool) do
         table.insert(remaining, item.position)
@@ -284,17 +197,15 @@ function GameState:initializeSpacedRepetitionOrder()
 
     -- Take 70% of cards weighted by difficulty, 30% random
     local weightedCount = math.floor(52 * 0.7)
-    local addedPositions = {}
 
     -- Add weighted selections (more difficult cards appear earlier)
-    for i = 1, weightedCount do
+    for _ = 1, weightedCount do
         if #remaining > 0 then
             -- Use weighted random selection biased towards beginning of array
             local maxIndex = math.min(#remaining, 10)  -- Consider top 10 most difficult
             local index = math.random(1, maxIndex)
             local position = remaining[index]
-            table.insert(self.questionOrder, position)
-            addedPositions[position] = true
+            table.insert(questionOrder, position)
             table.remove(remaining, index)
         end
     end
@@ -306,17 +217,19 @@ function GameState:initializeSpacedRepetitionOrder()
     end
 
     for _, position in ipairs(remaining) do
-        table.insert(self.questionOrder, position)
+        table.insert(questionOrder, position)
     end
 
     -- Final shuffle to add some randomness while keeping difficult cards toward the beginning
-    for i = 1, 10 do
+    for _ = 1, 10 do
         local j = math.random(1, 20)  -- Only shuffle within first 20 positions
         local k = math.random(1, 20)
-        if j <= #self.questionOrder and k <= #self.questionOrder then
-            self.questionOrder[j], self.questionOrder[k] = self.questionOrder[k], self.questionOrder[j]
+        if j <= #questionOrder and k <= #questionOrder then
+            questionOrder[j], questionOrder[k] = questionOrder[k], questionOrder[j]
         end
     end
+
+    return questionOrder
 end
 
 -- Submit an answer
@@ -332,172 +245,105 @@ function GameState:submitAnswer(answer, passed)
         self.userWasCorrect = (answer == self.correctAnswer)
     end
 
-    -- Record answer in session
-    if self.currentSession then
-        self.currentSession:recordAnswer(answer, self.correctAnswer, passed)
-
-        -- Update card statistics
-        local question = self.currentSession:getCurrentQuestion()
-        if question then
-            self:updateCardStats(question.position, self.userWasCorrect)
-        end
-
-        -- Sync legacy fields
-        self:syncLegacyFields()
-    else
-        -- Fallback to legacy behavior if no session
-        self.questionsAnswered = self.questionsAnswered + 1
-
-        if passed then
-            self.questionsPassed = self.questionsPassed + 1
-            self:updateCardStats(self.currentPosition, false)
-        else
-            if self.userWasCorrect then
-                self.score = self.score + 1
-                self.questionsCorrect = self.questionsCorrect + 1
-                self:updateCardStats(self.currentPosition, true)
-            else
-                self.questionsIncorrect = self.questionsIncorrect + 1
-                table.insert(self.mistakes, {
-                    position = self.currentPosition,
-                    correctAnswer = self.correctAnswer,
-                    userAnswer = answer
-                })
-                self:updateCardStats(self.currentPosition, false)
-            end
-        end
-    end
+    self.currentSession:recordAnswer(answer, self.correctAnswer, passed)
+    self:updateCardStats(self:getCurrentPosition(), self.userWasCorrect)
 
     self.quizState = GameState.QUIZ_STATES.FEEDBACK
 end
 
 -- Move to next question
 function GameState:nextQuestion()
-    if self.currentSession then
-        if self.currentSession:nextQuestion() then
-            -- More questions available
-            self.quizState = GameState.QUIZ_STATES.QUESTION
-
-            -- Sync legacy fields
-            self:syncLegacyFields()
-
-            -- Reset answer state
-            self.userAnswer = ""
-            self.userWasCorrect = false
-            self.userPassed = false
-        else
-            -- Quiz complete
-            self:completeQuiz()
-        end
+    if self.currentSession:nextQuestion() then
+        self.quizState = GameState.QUIZ_STATES.QUESTION
+        self.userAnswer = ""
+        self.userWasCorrect = false
+        self.userPassed = false
     else
-        -- Fallback to legacy behavior
-        self.questionIndex = self.questionIndex + 1
-
-        if self.questionIndex > self.totalQuestions then
-            self:completeQuiz()
-        else
-            self.currentPosition = self.questionOrder[self.questionIndex]
-            self.quizState = GameState.QUIZ_STATES.QUESTION
-            self.userAnswer = ""
-            self.userWasCorrect = false
-            self.userPassed = false
-        end
+        self:completeQuiz()
     end
 end
 
--- Complete the current quiz
+-- Complete the current quiz. Mistake re-quizzes never count towards high scores.
 function GameState:completeQuiz()
-    if self.currentSession then
-        self.currentSession:complete()
-        -- Sync legacy fields one final time
-        self:syncLegacyFields()
-    else
-        -- Legacy behavior
-        local currentTime = pd.getCurrentTimeMilliseconds() / 1000
-        self.elapsedTime = currentTime - self.startTime
-    end
+    self.currentSession:complete()
 
-    -- Update high scores if better
-    self:updateHighScoresIfBetter()
+    if not self.currentSession.isReviewSession then
+        self.lastResult = self:recordHighScore()
+    end
 
     self.quizState = GameState.QUIZ_STATES.COMPLETE
 end
 
--- Update timer (call in update loop)
-function GameState:updateTimer()
-    if not self.isPaused and self.quizState ~= GameState.QUIZ_STATES.COMPLETE then
-        if self.currentSession then
-            self.elapsedTime = self.currentSession:getElapsedTime()
-        else
-            local currentTime = pd.getCurrentTimeMilliseconds() / 1000
-            self.elapsedTime = currentTime - self.startTime
-        end
-    end
+function GameState:getCurrentPosition()
+    return self.currentSession:getCurrentQuestion().position
 end
 
--- Get formatted time string (MM:SS)
+function GameState:getScore()
+    return self.currentSession.statistics.score
+end
+
+function GameState:getQuestionsAnswered()
+    return self.currentSession.statistics.questionsAnswered
+end
+
+function GameState:getMistakes()
+    return self.currentSession.mistakes
+end
+
 function GameState:getFormattedTime()
-    if self.currentSession then
-        return self.currentSession:getFormattedTime()
-    else
-        local minutes = math.floor(self.elapsedTime / 60)
-        local seconds = math.floor(self.elapsedTime % 60)
-        return string.format("%d:%02d", minutes, seconds)
-    end
+    return self.currentSession:getFormattedTime()
 end
 
--- Get progress string
 function GameState:getProgressString()
-    if self.currentSession then
-        return self.currentSession:getProgressString()
-    else
-        return string.format("Question %d of %d", self.questionIndex, self.totalQuestions)
-    end
+    return self.currentSession:getProgressString()
 end
 
 -- Get score percentage
 function GameState:getScorePercentage()
-    if self.questionsAnswered == 0 then
+    if self:getQuestionsAnswered() == 0 then
         return 0
     end
-    return math.floor((self.score / self.questionsAnswered) * 100)
+    return math.floor((self:getScore() / self:getQuestionsAnswered()) * 100)
 end
 
--- Check if current score is a new high score
-function GameState:isNewHighScore()
-    local modeScores = self:getCurrentModeHighScores()
-
-    if self.score > modeScores.bestScore then
-        return true
-    elseif self.score == modeScores.bestScore and self.elapsedTime < modeScores.bestTime then
-        return true
-    end
-
-    return false
+-- A mode with no finished quiz has bestScore 0 and no bestTime.
+function GameState.emptyHighScores()
+    return {
+        numberToCard = { bestScore = 0 },
+        cardToNumber = { bestScore = 0 }
+    }
 end
 
--- Get high scores for current mode
 function GameState:getCurrentModeHighScores()
-    if self.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+    if self.currentSession.mode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         return self.highScores.numberToCard
-    elseif self.currentMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-        return self.highScores.cardToNumber
     end
-    return { bestScore = 0, bestTime = math.huge }
+    return self.highScores.cardToNumber
 end
 
--- Update high scores if current score is better
-function GameState:updateHighScoresIfBetter()
+-- Compare the finished session with the record for its mode, saving it if better.
+-- Best score wins; a tie on score goes to the faster time.
+function GameState:recordHighScore()
     local modeScores = self:getCurrentModeHighScores()
+    local score = self:getScore()
+    local elapsedTime = self.currentSession:getElapsedTime()
 
-    if self:isNewHighScore() then
-        modeScores.bestScore = self.score
-        modeScores.bestTime = self.elapsedTime
-        self:saveHighScores()
-        return true
+    local previousBest = nil
+    if modeScores.bestTime then
+        previousBest = { bestScore = modeScores.bestScore, bestTime = modeScores.bestTime }
     end
 
-    return false
+    local isNewBest = previousBest == nil
+        or score > previousBest.bestScore
+        or (score == previousBest.bestScore and elapsedTime < previousBest.bestTime)
+
+    if isNewBest then
+        modeScores.bestScore = score
+        modeScores.bestTime = elapsedTime
+        self:saveHighScores()
+    end
+
+    return { isNewBest = isNewBest, previousBest = previousBest }
 end
 
 -- Save high scores to persistent storage
@@ -527,88 +373,19 @@ function GameState:loadSettings()
     end
 end
 
--- Load high scores from persistent storage
+-- Load high scores from persistent storage. Saves written before bestTime became optional
+-- stored an infinite bestTime for modes with no finished quiz; those load as empty.
 function GameState:loadHighScores()
     local savedScores = pd.datastore.read("highscores")
-    if savedScores then
-        -- Merge saved scores with defaults (in case structure changed)
-        if savedScores.numberToCard then
-            self.highScores.numberToCard = savedScores.numberToCard
-            -- Handle old saves that might not have bestTime
-            if not self.highScores.numberToCard.bestTime then
-                self.highScores.numberToCard.bestTime = math.huge
-            end
-        end
-
-        if savedScores.cardToNumber then
-            self.highScores.cardToNumber = savedScores.cardToNumber
-            if not self.highScores.cardToNumber.bestTime then
-                self.highScores.cardToNumber.bestTime = math.huge
-            end
-        end
-
-        -- Handle legacy single high score format
-        if savedScores.bestScore and not savedScores.numberToCard then
-            self.highScores.numberToCard.bestScore = savedScores.bestScore
-            self.highScores.numberToCard.bestTime = savedScores.bestTime or math.huge
-        end
+    if not savedScores then
+        return
     end
-end
 
--- Save entire game state (for pause/resume)
-function GameState:saveState()
-    local stateData = {
-        currentMode = self.currentMode,
-        quizState = self.quizState,
-        soundEnabled = self.soundEnabled,
-        crankSensitivity = self.crankSensitivity,
-        lastSelectedMenuMode = self.lastSelectedMenuMode,
-        selectedAnswer = self.selectedAnswer,
-        correctAnswer = self.correctAnswer,
-        userAnswer = self.userAnswer,
-        userWasCorrect = self.userWasCorrect,
-        userPassed = self.userPassed
-    }
-
-    -- Save session data if exists
-    if self.currentSession then
-        stateData.sessionData = self.currentSession:export()
+    for mode, emptyScores in pairs(GameState.emptyHighScores()) do
+        local saved = savedScores[mode]
+        local hasFinishedQuiz = saved and type(saved.bestTime) == "number" and saved.bestTime < math.huge
+        self.highScores[mode] = hasFinishedQuiz and saved or emptyScores
     end
-    -- Note: Legacy fields are now lazily loaded, no need to save them separately
-
-    pd.datastore.write(stateData, "gamestate")
-end
-
--- Load game state (for resume)
-function GameState:loadState()
-    local stateData = pd.datastore.read("gamestate")
-    if stateData then
-        -- Restore basic state
-        self.currentMode = stateData.currentMode
-        self.quizState = stateData.quizState
-        self.soundEnabled = stateData.soundEnabled
-        self.crankSensitivity = stateData.crankSensitivity
-        self.lastSelectedMenuMode = stateData.lastSelectedMenuMode or 1
-        self.selectedAnswer = stateData.selectedAnswer
-        self.correctAnswer = stateData.correctAnswer
-        self.userAnswer = stateData.userAnswer
-        self.userWasCorrect = stateData.userWasCorrect
-        self.userPassed = stateData.userPassed
-
-        -- Restore session if exists
-        if stateData.sessionData then
-            self.currentSession = QuizSession:new(self.currentMode, 52)
-            self.currentSession:import(stateData.sessionData)
-        end
-        -- Legacy fields are handled by __index metamethod
-        return true
-    end
-    return false
-end
-
--- Clear saved state
-function GameState:clearSavedState()
-    pd.datastore.delete("gamestate")
 end
 
 -- Save card statistics for spaced repetition
@@ -674,10 +451,7 @@ end
 
 -- Reset all high scores
 function GameState:resetHighScores()
-    self.highScores = {
-        numberToCard = { bestScore = 0, bestTime = math.huge },
-        cardToNumber = { bestScore = 0, bestTime = math.huge }
-    }
+    self.highScores = GameState.emptyHighScores()
     self:saveHighScores()
 end
 
@@ -687,7 +461,6 @@ function GameState:pause()
     if self.currentSession then
         self.currentSession:pauseTimer()
     end
-    self:saveState()
 end
 
 -- Resume the game
@@ -695,10 +468,6 @@ function GameState:resume()
     self.isPaused = false
     if self.currentSession and not self.currentSession.isComplete then
         self.currentSession:resumeTimer()
-    else
-        -- Legacy: Adjust start time to account for pause duration
-        local currentTime = pd.getCurrentTimeMilliseconds() / 1000
-        self.startTime = currentTime - self.elapsedTime
     end
 end
 
@@ -730,12 +499,6 @@ function GameState:startMistakeReview()
     return false
 end
 
--- Create a review session from current session's mistakes (legacy support)
-function GameState:createReviewSession()
-    -- This now uses the new mistake review system
-    return self:startMistakeReview()
-end
-
 -- The quiz being answered. During mistake review this is the mode of the quiz under review.
 function GameState:getQuizMode()
     if self.currentMode == GameState.MODES.MISTAKE_REVIEW then
@@ -763,45 +526,5 @@ end
 
 -- Get session summary
 function GameState:getSessionSummary()
-    if self.currentSession then
-        return self.currentSession:getSummary()
-    else
-        -- Create legacy summary
-        return {
-            mode = self.currentMode,
-            score = self.score,
-            totalQuestions = self.totalQuestions,
-            questionsAnswered = self.questionsAnswered,
-            questionsCorrect = self.questionsCorrect,
-            questionsIncorrect = self.questionsIncorrect,
-            questionsPassed = self.questionsPassed,
-            accuracy = self:getScorePercentage(),
-            elapsedTime = self.elapsedTime,
-            formattedTime = self:getFormattedTime(),
-            mistakes = self.mistakes,
-            hasMistakes = #self.mistakes > 0,
-            isComplete = self.quizState == GameState.QUIZ_STATES.COMPLETE
-        }
-    end
-end
-
--- Reset to initial state
-function GameState:reset()
-    -- Keep high scores, settings, and card statistics
-    local savedHighScores = self.highScores
-    local savedSoundEnabled = self.soundEnabled
-    local savedCrankSensitivity = self.crankSensitivity
-    local savedCardStats = self.cardStats
-
-    -- Re-initialize
-    local newState = GameState:new()
-    for key, value in pairs(newState) do
-        self[key] = value
-    end
-
-    -- Restore saved values
-    self.highScores = savedHighScores
-    self.soundEnabled = savedSoundEnabled
-    self.crankSensitivity = savedCrankSensitivity
-    self.cardStats = savedCardStats
+    return self.currentSession:getSummary()
 end

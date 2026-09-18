@@ -254,20 +254,6 @@ function QuizSession:getMistakePositions()
     return positions
 end
 
--- Create a review session from mistakes
-function QuizSession:createReviewSession()
-    if not self:hasMistakes() then
-        return nil
-    end
-
-    local reviewSession = QuizSession:new(self.mode, #self:getMistakePositions())
-    reviewSession:initializeQuestions(self:getMistakePositions(), true)
-    reviewSession.isReviewSession = true
-    reviewSession.parentSessionId = self.sessionId  -- Link to original session if needed
-
-    return reviewSession
-end
-
 -- Get session summary
 function QuizSession:getSummary()
     return {
@@ -285,48 +271,4 @@ function QuizSession:getSummary()
         hasMistakes = self:hasMistakes(),
         isComplete = self.isComplete
     }
-end
-
--- Export session data for persistence
-function QuizSession:export()
-    return {
-        mode = self.mode,
-        totalQuestions = self.totalQuestions,
-        startTime = self.startTime,
-        endTime = self.endTime,
-        isComplete = self.isComplete,
-        isPaused = self.isPaused,
-        pausedTime = self.pausedTime,
-        pauseStartTime = self.pauseStartTime,
-        questions = self.questions,
-        currentQuestionIndex = self.currentQuestionIndex,
-        answers = self.answers,
-        mistakes = self.mistakes,
-        statistics = self.statistics,
-        isReviewSession = self.isReviewSession,
-        parentSessionId = self.parentSessionId
-    }
-end
-
--- Import session data from persistence
-function QuizSession:import(data)
-    if not data then return false end
-
-    self.mode = data.mode
-    self.totalQuestions = data.totalQuestions
-    self.startTime = data.startTime
-    self.endTime = data.endTime
-    self.isComplete = data.isComplete
-    self.isPaused = data.isPaused or false
-    self.pausedTime = data.pausedTime or 0
-    self.pauseStartTime = data.pauseStartTime
-    self.questions = data.questions
-    self.currentQuestionIndex = data.currentQuestionIndex
-    self.answers = data.answers
-    self.mistakes = data.mistakes
-    self.statistics = data.statistics
-    self.isReviewSession = data.isReviewSession
-    self.parentSessionId = data.parentSessionId
-
-    return true
 end

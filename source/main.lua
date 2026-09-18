@@ -16,8 +16,8 @@ import "UIHelpers"
 local gameState = GameState:new()
 
 -- Initialize renderers (will be initialized after resources are loaded)
-local dialRenderer = nil
-local numberDialRenderer = nil
+local dialRenderer
+local numberDialRenderer
 
 -- Load card sprites as a single image
 local cardSpriteSheet = gfx.image.new("images/cards")
@@ -93,11 +93,8 @@ local function getCachedScaledCard(cardIndex, scale)
 
     -- If cache is full, remove oldest entry (simple eviction)
     if cacheCount >= maxCacheSize then
-        -- Remove first entry found (not true LRU, but simple)
-        for key, _ in pairs(scaledCardCache) do
-            scaledCardCache[key] = nil
-            break
-        end
+        -- Not true LRU: evicts whichever entry the table yields first
+        scaledCardCache[next(scaledCardCache)] = nil
     end
 
     -- Create and cache new scaled image
@@ -159,7 +156,6 @@ local uspccOrder = {
 -- UI state (not managed by GameState)
 local selectedCard = 1 -- Index in uspccOrder (1-52) for crank selection
 local selectedNumber = 1 -- Selected position number (1-52) for Card to Number quiz
-local showingCorrectAnswer = false
 local menuSelection = 1 -- Currently selected menu item (1-4)
 local settingsSelection = 1 -- Currently selected settings item
 local showingCredits = false -- Track if we're showing the credits screen
@@ -322,19 +318,17 @@ end
 local function checkAnswer()
     if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         -- Number to Card mode: Check if selected card matches the position
-        local correctCard = mnemonicaStack[gameState.currentPosition]
+        local correctCard = mnemonicaStack[gameState:getCurrentPosition()]
         local selectedCardName = uspccOrder[selectedCard]
 
         gameState.correctAnswer = correctCard
         gameState:submitAnswer(selectedCardName, false)
-        showingCorrectAnswer = true
     elseif gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
         -- Card to Number mode: Check if selected number matches the card's position
-        local correctPosition = gameState.currentPosition
+        local correctPosition = gameState:getCurrentPosition()
 
         gameState.correctAnswer = tostring(correctPosition)
         gameState:submitAnswer(tostring(selectedNumber), false)
-        showingCorrectAnswer = true
     end
 
     if gameState.userWasCorrect then
@@ -345,7 +339,6 @@ local function checkAnswer()
 end
 
 local function nextQuestion()
-    showingCorrectAnswer = false
     gameState:nextQuestion()
 
     if gameState.quizState == GameState.QUIZ_STATES.COMPLETE then
@@ -353,9 +346,9 @@ local function nextQuestion()
     else
         -- Set correct answer for next question
         if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-            gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+            gameState.correctAnswer = mnemonicaStack[gameState:getCurrentPosition()]
         elseif gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-            gameState.correctAnswer = tostring(gameState.currentPosition)
+            gameState.correctAnswer = tostring(gameState:getCurrentPosition())
         end
     end
 end
@@ -370,14 +363,13 @@ local function resetGame()
     gameState:startQuiz(mode)
 
     if mode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+        gameState.correctAnswer = mnemonicaStack[gameState:getCurrentPosition()]
         selectedCard = 1
     elseif mode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-        gameState.correctAnswer = tostring(gameState.currentPosition)
+        gameState.correctAnswer = tostring(gameState:getCurrentPosition())
         selectedNumber = 1
     end
 
-    showingCorrectAnswer = false
     lastCrankPosition = pd.getCrankPosition()
 
     -- Reset completion screen state
@@ -390,7 +382,6 @@ local function startMistakeReview()
     -- Start the mistake review mode (study phase first)
     if gameState:startMistakeReview() then
         -- Reset UI state for study phase
-        showingCorrectAnswer = false
         lastCrankPosition = pd.getCrankPosition()
 
         -- Reset completion screen state
@@ -443,15 +434,13 @@ local function startSelectedMode()
     -- Start the selected quiz mode
     if selectedMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
         gameState:startQuiz(selectedMode)
-        gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+        gameState.correctAnswer = mnemonicaStack[gameState:getCurrentPosition()]
         selectedCard = 1
-        showingCorrectAnswer = false
         lastCrankPosition = pd.getCrankPosition()
     elseif selectedMode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
         gameState:startQuiz(selectedMode)
-        gameState.correctAnswer = tostring(gameState.currentPosition)
+        gameState.correctAnswer = tostring(gameState:getCurrentPosition())
         selectedNumber = 1
-        showingCorrectAnswer = false
         lastCrankPosition = pd.getCrankPosition()
     elseif selectedMode == GameState.MODES.STUDY then
         -- Study mode
@@ -489,13 +478,12 @@ local function drawQuizNumberToCard()
     gfx.clear()
 
     -- Draw question at top with bold text
-    local questionText = "Position " .. gameState.currentPosition .. "?"
+    local questionText = "Position " .. gameState:getCurrentPosition() .. "?"
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned(questionText, 200, 10, kTextAlignment.center)
     gfx.setFont()
 
     -- Draw timer in top-right corner
-    gameState:updateTimer()
     local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
@@ -531,7 +519,7 @@ local function drawQuizCardToNumber()
     gfx.clear()
 
     -- Draw question text at top with bold text
-    local questionCard = mnemonicaStack[gameState.currentPosition]
+    local questionCard = mnemonicaStack[gameState:getCurrentPosition()]
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned("What position is this card?", 200, 10, kTextAlignment.center)
     gfx.setFont()
@@ -540,7 +528,6 @@ local function drawQuizCardToNumber()
     drawCard(questionCard, 80, 100, 1)
 
     -- Draw timer in top-right corner
-    gameState:updateTimer()
     local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
@@ -583,7 +570,6 @@ local function drawFeedback()
     gfx.clear()
 
     -- Draw timer in top-right corner (keep it visible during feedback)
-    gameState:updateTimer()
     local timeText = gameState:getFormattedTime()
     gfx.drawTextAligned(timeText, 380, 10, kTextAlignment.right)
 
@@ -618,7 +604,7 @@ local function drawFeedback()
         end
     elseif gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
         -- Card to Number mode feedback
-        local questionCard = mnemonicaStack[gameState.currentPosition]
+        local questionCard = mnemonicaStack[gameState:getCurrentPosition()]
 
         -- Show the card being questioned
         drawCard(questionCard, 200, 50, 1)
@@ -643,7 +629,7 @@ local function drawFeedback()
     end
 
     -- Draw score
-    local scoreText = "Score: " .. gameState.score .. "/" .. gameState.questionsAnswered
+    local scoreText = "Score: " .. gameState:getScore() .. "/" .. gameState:getQuestionsAnswered()
     gfx.drawTextAligned(scoreText, 200, 160, kTextAlignment.center)
 
     -- Draw continue instruction
@@ -651,8 +637,8 @@ local function drawFeedback()
 end
 
 local function drawCompletionSummary()
-    -- Check if this is a new high score
-    local isNewBest = gameState:isNewHighScore()
+    local isNewBest = gameState.lastResult.isNewBest
+    local previousBest = gameState.lastResult.previousBest
 
     -- Title
     local titleY = 10
@@ -667,7 +653,7 @@ local function drawCompletionSummary()
     end
 
     -- Score and time
-    local finalScore = "Score: " .. gameState.score .. "/52"
+    local finalScore = "Score: " .. gameState:getScore() .. "/52"
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
     gfx.drawTextAligned(finalScore, 200, 35, kTextAlignment.center)
     gfx.setFont()
@@ -679,28 +665,25 @@ local function drawCompletionSummary()
     gfx.drawTextAligned(finalTime, 200, 70, kTextAlignment.center)
 
     -- Show high score comparison
-    local currentModeScores = gameState:getCurrentModeHighScores()
-    if not isNewBest and currentModeScores.bestScore > 0 then
+    local showPreviousBest = previousBest and not isNewBest
+    if showPreviousBest then
         gfx.drawTextAligned("-- Previous Best --", 200, 90, kTextAlignment.center)
-        local bestScoreText = "Best: " .. currentModeScores.bestScore .. "/52"
-        if currentModeScores.bestTime < math.huge then
-            local bestMinutes = math.floor(currentModeScores.bestTime / 60)
-            local bestSeconds = math.floor(currentModeScores.bestTime % 60)
-            bestScoreText = bestScoreText .. string.format(" (%d:%02d)", bestMinutes, bestSeconds)
-        end
+        local bestMinutes = math.floor(previousBest.bestTime / 60)
+        local bestSeconds = math.floor(previousBest.bestTime % 60)
+        local bestScoreText = string.format("Best: %d/52 (%d:%02d)", previousBest.bestScore, bestMinutes, bestSeconds)
         gfx.drawTextAligned(bestScoreText, 200, 105, kTextAlignment.center)
     end
 
     -- Mistakes summary (adjust Y position)
-    local mistakesSectionY = isNewBest and 95 or (currentModeScores.bestScore > 0 and 120 or 95)
-    local numMistakes = #gameState.mistakes
+    local mistakesSectionY = showPreviousBest and 120 or 95
+    local numMistakes = #gameState:getMistakes()
     if numMistakes > 0 then
         gfx.drawTextAligned("-- Mistakes: " .. numMistakes .. " --", 200, mistakesSectionY, kTextAlignment.center)
 
         -- Show first few mistakes as preview
         local previewCount = math.min(3, numMistakes)
         for i = 1, previewCount do
-            local mistake = gameState.mistakes[i]
+            local mistake = gameState:getMistakes()[i]
             local mistakeText = "Pos " .. mistake.position .. ": " .. mistake.correctAnswer
             if mistake.userAnswer == "PASSED" then
                 mistakeText = mistakeText .. " (passed)"
@@ -752,7 +735,7 @@ local function drawMistakesList()
     gfx.drawTextAligned("Mistakes Review", 200, 10, kTextAlignment.center)
     gfx.setFont()
 
-    local numMistakes = #gameState.mistakes
+    local numMistakes = #gameState:getMistakes()
     gfx.drawTextAligned("Total: " .. numMistakes .. " mistakes", 200, 30, kTextAlignment.center)
 
     -- Draw mistakes list with scrolling support
@@ -763,7 +746,7 @@ local function drawMistakesList()
     for i = 1, math.min(numMistakes, maxVisibleLines) do
         local mistakeIndex = i + completionScreenState.mistakeScrollOffset
         if mistakeIndex <= numMistakes then
-            local mistake = gameState.mistakes[mistakeIndex]
+            local mistake = gameState:getMistakes()[mistakeIndex]
             local y = startY + ((i - 1) * lineHeight)
 
             -- Position and correct answer
@@ -1015,16 +998,14 @@ local function drawHighScores()
     -- Number to Card Quiz section
     gfx.drawTextAligned("-- Number to Card Quiz --", 200, 60, kTextAlignment.center)
     local numberToCardScores = gameState.highScores.numberToCard
-    if numberToCardScores.bestScore > 0 then
+    if numberToCardScores.bestTime then
         local scoreText = "Best Score: " .. numberToCardScores.bestScore .. "/52"
         gfx.drawTextAligned(scoreText, 200, 80, kTextAlignment.center)
 
-        if numberToCardScores.bestTime < math.huge then
-            local minutes = math.floor(numberToCardScores.bestTime / 60)
-            local seconds = math.floor(numberToCardScores.bestTime % 60)
-            local timeText = string.format("Best Time: %d:%02d", minutes, seconds)
-            gfx.drawTextAligned(timeText, 200, 100, kTextAlignment.center)
-        end
+        local minutes = math.floor(numberToCardScores.bestTime / 60)
+        local seconds = math.floor(numberToCardScores.bestTime % 60)
+        local timeText = string.format("Best Time: %d:%02d", minutes, seconds)
+        gfx.drawTextAligned(timeText, 200, 100, kTextAlignment.center)
     else
         gfx.drawTextAligned("No scores yet", 200, 80, kTextAlignment.center)
     end
@@ -1032,16 +1013,14 @@ local function drawHighScores()
     -- Card to Number Quiz section
     gfx.drawTextAligned("-- Card to Number Quiz --", 200, 130, kTextAlignment.center)
     local cardToNumberScores = gameState.highScores.cardToNumber
-    if cardToNumberScores.bestScore > 0 then
+    if cardToNumberScores.bestTime then
         local scoreText = "Best Score: " .. cardToNumberScores.bestScore .. "/52"
         gfx.drawTextAligned(scoreText, 200, 150, kTextAlignment.center)
 
-        if cardToNumberScores.bestTime < math.huge then
-            local minutes = math.floor(cardToNumberScores.bestTime / 60)
-            local seconds = math.floor(cardToNumberScores.bestTime % 60)
-            local timeText = string.format("Best Time: %d:%02d", minutes, seconds)
-            gfx.drawTextAligned(timeText, 200, 170, kTextAlignment.center)
-        end
+        local minutes = math.floor(cardToNumberScores.bestTime / 60)
+        local seconds = math.floor(cardToNumberScores.bestTime % 60)
+        local timeText = string.format("Best Time: %d:%02d", minutes, seconds)
+        gfx.drawTextAligned(timeText, 200, 170, kTextAlignment.center)
     else
         gfx.drawTextAligned("No scores yet", 200, 150, kTextAlignment.center)
     end
@@ -1613,10 +1592,10 @@ function playdate.update()
 
                     if gameState.mistakeReviewMode.currentPhase == MistakeReviewMode.PHASES.QUIZ then
                         if gameState.mistakeReviewMode.originalMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-                            gameState.correctAnswer = mnemonicaStack[gameState.currentPosition]
+                            gameState.correctAnswer = mnemonicaStack[gameState:getCurrentPosition()]
                             selectedCard = 1
                         else
-                            gameState.correctAnswer = tostring(gameState.currentPosition)
+                            gameState.correctAnswer = tostring(gameState:getCurrentPosition())
                             selectedNumber = 1
                         end
                     end
@@ -1947,7 +1926,7 @@ function playdate.update()
                 completionScreenState.mistakeScrollOffset = math.max(0, completionScreenState.mistakeScrollOffset - 1)
             elseif pd.buttonJustPressed(pd.kButtonDown) then
                 if gameState.soundEnabled then sounds.buttonPress:play() end
-                local maxOffset = math.max(0, #gameState.mistakes - 9)  -- 9 visible lines
+                local maxOffset = math.max(0, #gameState:getMistakes() - 9)  -- 9 visible lines
                 completionScreenState.mistakeScrollOffset = math.min(maxOffset, completionScreenState.mistakeScrollOffset + 1)
             elseif pd.buttonJustPressed(pd.kButtonA) then
                 if gameState.soundEnabled then sounds.buttonPress:play() end
@@ -1961,7 +1940,7 @@ function playdate.update()
             end
         else
             -- Main completion screen controls
-            local numOptions = #gameState.mistakes > 0 and 3 or 2  -- 3 options if mistakes, 2 if perfect
+            local numOptions = #gameState:getMistakes() > 0 and 3 or 2  -- 3 options if mistakes, 2 if perfect
 
             if pd.buttonJustPressed(pd.kButtonUp) then
                 if gameState.soundEnabled then sounds.menuMove:play() end
@@ -1978,7 +1957,7 @@ function playdate.update()
             elseif pd.buttonJustPressed(pd.kButtonA) then
                 if gameState.soundEnabled then sounds.buttonPress:play() end
 
-                if #gameState.mistakes > 0 then
+                if #gameState:getMistakes() > 0 then
                     -- With mistakes: 1=Play Again, 2=Review, 3=Menu
                     if completionScreenState.selectedOption == 1 then
                         resetGame()

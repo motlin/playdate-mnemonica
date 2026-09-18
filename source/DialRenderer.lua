@@ -1,7 +1,6 @@
 -- DialRenderer module for rotating dial visualization
 -- Creates an alarm clock-style rotating dial for card selection
 
-local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
 DialRenderer = {}

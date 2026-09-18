@@ -43,7 +43,7 @@ do
 
     -- Answer the current question. correct=true picks the right answer.
     local function answer(correct, shotName)
-        local pos = gameState.currentPosition
+        local pos = gameState:getCurrentPosition()
         if gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
             selectedNumber = correct and pos or (pos % 52) + 1
         else

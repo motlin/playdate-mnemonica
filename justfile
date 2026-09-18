@@ -41,4 +41,4 @@ screenshots output="builds/screenshots":
 smoke: screenshots
 
 # ✅ Pre-commit checks
-precommit: test build
+precommit: lint test build

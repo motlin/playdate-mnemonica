@@ -1,7 +1,6 @@
 -- NumberDialRenderer module for rotating number dial visualization
 -- Creates an alarm clock-style rotating dial for number selection (1-52)
 
-local pd <const> = playdate
 local gfx <const> = playdate.graphics
 
 NumberDialRenderer = {}
@@ -83,9 +82,6 @@ function NumberDialRenderer:getNumberTransform(numberIndex, selectedNumber)
     while numberAngle >= 360 do
         numberAngle = numberAngle - 360
     end
-
-    -- Convert to radians for trigonometry
-    local radians = math.rad(numberAngle)
 
     -- Calculate position on a circular path (simplified for clarity)
     -- Numbers arranged in a vertical wheel like a slot machine
@@ -250,14 +246,11 @@ function NumberDialRenderer:draw(selectedNumber)
     end
 
     -- Draw selection indicator (subtle arrows or brackets around selected number)
-    self:drawSelectionIndicator(selectedNumber)
-
-    -- Draw position indicator
-    self:drawPositionIndicator(selectedNumber)
+    self:drawSelectionIndicator()
 end
 
 -- Draw visual indicator for the selected number
-function NumberDialRenderer:drawSelectionIndicator(selectedNumber)
+function NumberDialRenderer:drawSelectionIndicator()
     -- Draw simple selection box around the selected number
     local boxWidth = 60
     local boxHeight = 35
@@ -270,12 +263,6 @@ function NumberDialRenderer:drawSelectionIndicator(selectedNumber)
         boxHeight
     )
     gfx.setLineWidth(1)
-end
-
--- Draw position indicator showing which number is selected
-function NumberDialRenderer:drawPositionIndicator(selectedNumber)
-    -- Skip drawing position dots to reduce clutter
-    -- The selection box is enough to indicate the selected number
 end
 
 -- Draw dial frame/background
