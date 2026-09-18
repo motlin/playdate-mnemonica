@@ -10,6 +10,12 @@ do
     local pendingShot = nil
     local shotCount = 0
 
+    -- Deterministic runs: fixed shuffle order and a clock that advances one frame per update,
+    -- so two runs of the same code produce byte-identical screenshots.
+    local frameCount = 0
+    math.randomseed(52)
+    pd.getCurrentTimeMilliseconds = function() return frameCount * 33 end
+
     pd.buttonJustPressed = function(b) return pressed[b] == true end
     pd.getCrankPosition = function() return crank end
     pd.isCrankDocked = function() return docked end
@@ -189,6 +195,7 @@ do
     local dead = false
     function playdate.update()
         if dead then return end
+        frameCount = frameCount + 1
         if coroutine.status(co) ~= "dead" then
             local ok, err = coroutine.resume(co)
             if not ok then log("SCRIPT ERROR: " .. tostring(err)); dead = true; return end
