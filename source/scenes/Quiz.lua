@@ -12,7 +12,7 @@ local gfx <const> = playdate.graphics
 local gameState <const> = App.gameState
 local sounds <const> = Assets.sounds
 
-QuizScene = {}
+QuizScene = { hasQuizInProgress = true }
 
 local function isNumberToCard()
     return gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD
@@ -88,8 +88,5 @@ function QuizScene.update()
     elseif pd.buttonJustPressed(pd.kButtonB) then
         Assets.playSound(sounds.buttonPress)
         SceneManager.switch(MenuScene)
-        SystemMenu.refresh()
-        gameState.mistakeReviewMode = nil
-        gameState.originalSession = nil
     end
 end

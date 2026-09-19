@@ -1,5 +1,5 @@
--- Items in the Playdate system menu. They depend on the current mode and settings, so call
--- SystemMenu.refresh() after changing either.
+-- Items in the Playdate system menu, which holds at most three custom items.
+-- Scenes that are part of a quiz in progress set `hasQuizInProgress` to get the quiz items.
 
 import "App"
 import "Assets"
@@ -7,72 +7,27 @@ import "SceneManager"
 
 local pd <const> = playdate
 local gameState <const> = App.gameState
-local sounds <const> = Assets.sounds
 
 SystemMenu = {}
 
 local menu = pd.getSystemMenu()
 
-local function restartQuiz()
-    local mode = gameState.currentMode
-    if mode == GameState.MODES.MENU then
-        mode = GameState.MODES.QUIZ_NUMBER_TO_CARD
-    end
-
-    if mode == GameState.MODES.QUIZ_NUMBER_TO_CARD or mode == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-        QuizScene.start(mode)
-    else
-        -- Outside a quiz the new session is never shown, but starting it still unpauses the game
-        gameState:startQuiz(mode)
-    end
-end
-
-function SystemMenu.refresh()
+function SystemMenu.refresh(scene)
     menu:removeAllMenuItems()
 
-    -- Don't show pause/resume in menu mode, study mode, or settings mode
-    if gameState.currentMode ~= GameState.MODES.MENU and
-       gameState.currentMode ~= GameState.MODES.STUDY and
-       gameState.currentMode ~= GameState.MODES.SETTINGS then
-        if gameState.isPaused then
-            menu:addMenuItem("Resume", function()
-                Assets.playSound(sounds.buttonPress)
-                gameState:resume()
-                SystemMenu.refresh()
-            end)
-        else
-            menu:addMenuItem("Pause", function()
-                Assets.playSound(sounds.buttonPress)
-                gameState:pause()
-                SystemMenu.refresh()
-            end)
-        end
-
-        menu:addMenuItem("Restart Quiz", function()
-            Assets.playSound(sounds.buttonPress)
-            restartQuiz()
-            SystemMenu.refresh()
+    if scene.hasQuizInProgress then
+        menu:addMenuItem("Restart quiz", function()
+            QuizScene.start(gameState:getQuizMode())
         end)
 
-        menu:addMenuItem("Main Menu", function()
-            Assets.playSound(sounds.buttonPress)
+        menu:addMenuItem("Main menu", function()
             SceneManager.switch(MenuScene)
-            SystemMenu.refresh()
         end)
     end
 
-    local soundLabel = gameState.soundEnabled and "Sound: On" or "Sound: Off"
-    menu:addMenuItem(soundLabel, function()
-        gameState.soundEnabled = not gameState.soundEnabled
+    menu:addCheckmarkMenuItem("Sound", gameState.soundEnabled, function(isEnabled)
+        gameState.soundEnabled = isEnabled
         gameState:saveSettings()
-        -- Confirm with a sound if sound was just enabled
-        Assets.playSound(sounds.buttonPress)
-        SystemMenu.refresh()
-    end)
-
-    menu:addMenuItem("Reset Statistics", function()
-        Assets.playSound(sounds.buttonPress)
-        gameState:resetCardStats()
-        SystemMenu.refresh()
+        Assets.playSound(Assets.sounds.buttonPress)
     end)
 end

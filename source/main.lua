@@ -18,19 +18,19 @@ import "scenes/Settings"
 import "scenes/Credits"
 
 local pd <const> = playdate
-local gfx <const> = playdate.graphics
 local gameState <const> = App.gameState
 
 function playdate.update()
-    if gameState.isPaused then
-        gfx.clear()
-        gfx.drawTextAligned("PAUSED", 200, 100, kTextAlignment.center)
-        gfx.drawTextAligned("Press Menu to resume", 200, 130, kTextAlignment.center)
-        return
-    end
-
     SceneManager.update()
 end
+
+-- The system menu, a locked device, and quitting all stop the quiz clock and save progress
+function playdate.gameWillPause() gameState:suspend() end
+function playdate.gameWillResume() gameState:unsuspend() end
+function playdate.deviceWillLock() gameState:suspend() end
+function playdate.deviceDidUnlock() gameState:unsuspend() end
+function playdate.deviceWillSleep() gameState:suspend() end
+function playdate.gameWillTerminate() gameState:suspend() end
 
 math.randomseed(pd.getSecondsSinceEpoch())
 
@@ -40,5 +40,5 @@ pd.display.setRefreshRate(30)
 gameState:loadHighScores()
 gameState:loadSettings()
 MenuScene.selection = gameState.lastSelectedMenuMode
+SceneManager.onSwitch = SystemMenu.refresh
 SceneManager.switch(MenuScene)
-SystemMenu.refresh()

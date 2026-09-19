@@ -30,6 +30,9 @@ do
     end
     pd.isCrankDocked = function() return docked end
     gameState.soundEnabled = false
+    -- The game being replaced saves its statistics as it quits, after run.sh has cleared the
+    -- data folder, so start every scenario from fresh statistics regardless.
+    gameState:resetCardStats()
 
     local function log(msg)
         print("[harness] " .. msg)

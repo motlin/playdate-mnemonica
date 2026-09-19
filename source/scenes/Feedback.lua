@@ -11,7 +11,7 @@ local gfx <const> = playdate.graphics
 local gameState <const> = App.gameState
 local sounds <const> = Assets.sounds
 
-FeedbackScene = {}
+FeedbackScene = { hasQuizInProgress = true }
 
 local FOOTER_HINTS <const> = { { button = "A", label = "Continue" } }
 

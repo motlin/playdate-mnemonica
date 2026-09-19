@@ -65,9 +65,6 @@ function GameState:new()
     state.userWasCorrect = false
     state.userPassed = false
 
-    -- Pause state
-    state.isPaused = false
-
     -- High scores
     state.highScores = GameState.emptyHighScores()
 
@@ -106,6 +103,8 @@ end
 function GameState:startQuiz(mode, useSpacedRepetition)
     self.currentMode = mode or GameState.MODES.QUIZ_NUMBER_TO_CARD
     self.quizState = GameState.QUIZ_STATES.QUESTION
+    self.mistakeReviewMode = nil
+    self.originalSession = nil
 
     -- Create new quiz session
     self.currentSession = QuizSession:new(self.currentMode, 52)
@@ -138,7 +137,6 @@ function GameState:startQuiz(mode, useSpacedRepetition)
     self.userAnswer = ""
     self.userWasCorrect = false
     self.userPassed = false
-    self.isPaused = false
 end
 
 -- Check if we have enough data to use spaced repetition
@@ -266,6 +264,7 @@ end
 -- Complete the current quiz. Mistake re-quizzes never count towards high scores.
 function GameState:completeQuiz()
     self.currentSession:complete()
+    self:saveCardStats()
 
     if not self.currentSession.isReviewSession then
         self.lastResult = self:recordHighScore()
@@ -419,9 +418,6 @@ function GameState:updateCardStats(position, wasCorrect)
             -- Increase difficulty when answered incorrectly
             stats.difficulty = math.min(10.0, stats.difficulty * 1.5)
         end
-
-        -- Auto-save card stats after each update
-        self:saveCardStats()
     end
 end
 
@@ -455,18 +451,17 @@ function GameState:resetHighScores()
     self:saveHighScores()
 end
 
--- Pause the game
-function GameState:pause()
-    self.isPaused = true
+-- The system menu opened, the device locked, or the game is closing: stop the quiz clock
+-- and write anything not yet saved, since the game may not come back.
+function GameState:suspend()
     if self.currentSession then
         self.currentSession:pauseTimer()
     end
+    self:saveCardStats()
 end
 
--- Resume the game
-function GameState:resume()
-    self.isPaused = false
-    if self.currentSession and not self.currentSession.isComplete then
+function GameState:unsuspend()
+    if self.currentSession then
         self.currentSession:resumeTimer()
     end
 end

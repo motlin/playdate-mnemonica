@@ -54,4 +54,15 @@ describe("SceneManager", function()
         assert.is_true(SceneManager.isCurrent(quiz))
         assert.is_false(SceneManager.isCurrent(menu))
     end)
+
+    it("tells its listener about the new scene after entering it", function()
+        local log = {}
+        local quiz = recordingScene("quiz", log)
+        SceneManager.onSwitch = function(scene) log[#log + 1] = { "listener", scene == quiz } end
+
+        SceneManager.switch(quiz)
+
+        assert.are.same({ { "quiz", "enter" }, { "listener", true } }, log)
+        SceneManager.onSwitch = nil
+    end)
 end)
