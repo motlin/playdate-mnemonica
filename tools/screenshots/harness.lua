@@ -199,6 +199,41 @@ do
         expect(gameState.currentSession.totalQuestions == 52, "original session restored")
     end
 
+    -- Not a playthrough: draws the launcher card and icon from the game's own font and card art.
+    scenarios.launcher_art = function()
+        local function save(name, width, height, drawContents)
+            local image = gfx.image.new(width, height, gfx.kColorBlack)
+            gfx.pushContext(image)
+            drawContents()
+            gfx.popContext()
+            pd.simulator.writeToFile(image, OUT .. "/" .. name .. ".png")
+        end
+
+        local function drawCardArt(highlighted)
+            local firstCards = { 1, 2, 3, 4 }
+            for slot, position in ipairs(firstCards) do
+                local lift = (highlighted and slot == #firstCards) and -8 or 0
+                Assets.drawCard(Deck.mnemonicaStack[position], 34 + (slot - 1) * 30, 78 + lift, 1)
+            end
+            gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+            Layout.drawLargeText("Mnemonica", 256, 62)
+            gfx.setFont(Layout.boldFont)
+            gfx.drawTextAligned("stack memorizer", 256, 88, kTextAlignment.center)
+            gfx.setFont()
+            gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        end
+
+        save("card", 350, 155, function() drawCardArt(false) end)
+        save("card-highlighted", 350, 155, function() drawCardArt(true) end)
+        save("icon", 32, 32, function()
+            -- The ace of spades' centre pip fills the icon
+            gfx.setClipRect(1, 1, 30, 30)
+            Assets.drawCard("AS", 16, 16, 1)
+            gfx.clearClipRect()
+        end)
+        frames(2)
+    end
+
     scenarios.perfect = function()
         frames(10)
         completeQuiz(1, 0, "n2c-perfect")

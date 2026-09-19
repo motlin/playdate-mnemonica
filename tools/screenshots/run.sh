@@ -2,14 +2,15 @@
 # run.sh <scenario> [output-dir]
 # Builds a throwaway copy of source/ with harness.lua appended to main.lua, runs it in the
 # Simulator, and waits for the PNGs. Exits non-zero if the game or the script crashes.
-# Uses its own MnemonicaShots.pdx so real save data is never touched. Sends no OS input.
+# The build copy gets its own bundleID so real save data is never touched. Sends no OS input.
 set -euo pipefail
 ROOT="$(command cd "$(dirname "$0")/../.." && pwd)"
 SCENARIO="$1"
 OUT="${2:-$ROOT/builds/screenshots}"
 SRC="$ROOT/builds/harness-source"
 PDX="$ROOT/builds/MnemonicaShots.pdx"
-DATA="$HOME/Developer/PlaydateSDK/Disk/Data/MnemonicaShots"
+HARNESS_BUNDLE_ID="com.motlin.mnemonica.screenshots"
+DATA="$HOME/Developer/PlaydateSDK/Disk/Data/$HARNESS_BUNDLE_ID"
 LOG="$DATA/harness-log.txt"
 
 mkdir -p "$OUT"
@@ -21,6 +22,8 @@ find "$OUT" -name "$SCENARIO-*.png" -delete
 mkdir -p "$DATA"
 : > "$LOG"
 cp -R "$ROOT/source" "$SRC"
+sed -i '' "s/^bundleID=.*/bundleID=$HARNESS_BUNDLE_ID/" "$SRC/pdxinfo"
+grep -q "^bundleID=$HARNESS_BUNDLE_ID$" "$SRC/pdxinfo"
 {
   echo ""
   echo "HARNESS_OUT = \"$OUT\""
