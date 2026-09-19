@@ -15,13 +15,13 @@ LOG="$DATA/harness-log.txt"
 
 mkdir -p "$OUT"
 OUT="$(command cd "$OUT" && pwd)"
-for stale in "$SRC" "$PDX" "$DATA"; do
-  if [ -e "$stale" ]; then trash "$stale"; fi
-done
 find "$OUT" -name "$SCENARIO-*.png" -delete
-mkdir -p "$DATA"
+mkdir -p "$DATA" "$SRC"
+# Start from fresh saves; only the game's own flat files live here
+find "$DATA" -maxdepth 1 -type f -delete
 : > "$LOG"
-cp -R "$ROOT/source" "$SRC"
+# Mirror rather than delete-and-copy, so nothing here needs a recursive delete
+rsync --archive --delete "$ROOT/source/" "$SRC/"
 sed -i '' "s/^bundleID=.*/bundleID=$HARNESS_BUNDLE_ID/" "$SRC/pdxinfo"
 grep -q "^bundleID=$HARNESS_BUNDLE_ID$" "$SRC/pdxinfo"
 {
