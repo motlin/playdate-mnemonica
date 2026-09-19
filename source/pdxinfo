@@ -1,6 +1,7 @@
 name=Mnemonica Stack Memorizer
 author=The Motlins
-description=
-bundleID=
+description=Memorize the Mnemonica stack with the crank: quiz yourself on positions and cards, study, and review your mistakes.
+bundleID=com.motlin.mnemonica
 version=1.0.0
 buildNumber=1
+imagePath=launcher
