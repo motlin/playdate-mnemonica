@@ -185,7 +185,10 @@ do
     scenarios.perfect = function()
         frames(10)
         completeQuiz(1, 0, "n2c-perfect")
-        menuTo(5)
+        SummaryScene.selectedOption = 1; frames(2)
+        press(pd.kButtonDown, 2); shot("n2c-perfect-main-menu-selected")
+        press(pd.kButtonA, 4); shot("n2c-perfect-after-main-menu")
+        expect(SceneManager.isCurrent(MenuScene), "Main Menu is reachable after a perfect score")
     end
 
     local co = coroutine.create(function()

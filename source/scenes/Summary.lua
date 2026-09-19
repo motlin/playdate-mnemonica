@@ -23,8 +23,7 @@ local function getOptions()
     if #gameState:getMistakes() > 0 then
         return { PLAY_AGAIN, REVIEW_MISTAKES, MAIN_MENU }
     end
-    -- TODO: a perfect score should offer Main Menu too
-    return { PLAY_AGAIN }
+    return { PLAY_AGAIN, MAIN_MENU }
 end
 
 local function drawHeading(text, y)

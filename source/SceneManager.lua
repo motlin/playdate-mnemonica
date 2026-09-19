@@ -14,3 +14,7 @@ end
 function SceneManager.update()
     currentScene.update()
 end
+
+function SceneManager.isCurrent(scene)
+    return currentScene == scene
+end
