@@ -34,6 +34,10 @@ local game
 local displayTimer
 local dialQuestionNumber
 
+local function playShownCard()
+    Assets.playCardTones(Deck.mnemonicaStack[game:shownPosition()])
+end
+
 local function startGame()
     game = SimonGame:new({
         bestRounds = gameState.simonMode.maxRound,
@@ -45,6 +49,7 @@ local function startGame()
     SimonScene.game = game
     displayTimer = 0
     dialQuestionNumber = nil
+    playShownCard()
 end
 
 -- Every question gets a new dial. A dial kept from the previous question would still be
@@ -130,6 +135,9 @@ end
 local function showNextCard()
     displayTimer = 0
     game:showNext()
+    if game.phase == PHASES.SHOWING then
+        playShownCard()
+    end
 end
 
 local function submitAnswer()
@@ -141,7 +149,8 @@ local function submitAnswer()
     end
 
     if game.lastAnswerCorrect then
-        Assets.playSound(sounds.correct)
+        -- A right answer plays the card back, as Simon plays the colour you pressed
+        Assets.playCardTones(Deck.mnemonicaStack[game:askedPosition()])
     else
         Assets.playSound(sounds.incorrect)
         if game.isNewBest then
@@ -195,6 +204,9 @@ local function updateFeedback()
         else
             displayTimer = 0
             game:continue()
+            if game.phase == PHASES.SHOWING then
+                playShownCard()
+            end
         end
     end
 end

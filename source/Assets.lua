@@ -2,6 +2,7 @@
 
 import "CoreLibs/graphics"
 import "App"
+import "CardTones"
 import "Deck"
 
 local gfx <const> = playdate.graphics
@@ -85,4 +86,24 @@ Assets.sounds.buttonPress:setVolume(0.3)
 
 function Assets.playSound(sound)
     if App.gameState.soundEnabled then sound:play() end
+end
+
+-- A square wave for the suit and a softer triangle for the rank keep the two easy to tell apart
+local suitSynth = snd.synth.new(snd.kWaveSquare)
+local rankSynth = snd.synth.new(snd.kWaveTriangle)
+suitSynth:setADSR(0.005, 0.04, 0.7, 0.04)
+rankSynth:setADSR(0.005, 0.08, 0.6, 0.12)
+
+local SUIT_TONE_SECONDS <const> = 0.16
+local RANK_NOTE_SECONDS <const> = 0.32
+local SUIT_TONE_VOLUME <const> = 0.25
+local RANK_NOTE_VOLUME <const> = 0.6
+
+-- A card's two-note motif: its suit tone, then its rank note.
+function Assets.playCardTones(cardName)
+    if not App.gameState.soundEnabled then return end
+
+    local now = snd.getCurrentTime()
+    suitSynth:playNote(CardTones.suitFrequency(cardName), SUIT_TONE_VOLUME, SUIT_TONE_SECONDS, now)
+    rankSynth:playMIDINote(CardTones.rankMidiNote(cardName), RANK_NOTE_VOLUME, RANK_NOTE_SECONDS, now + SUIT_TONE_SECONDS + 0.02)
 end

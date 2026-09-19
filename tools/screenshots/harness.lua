@@ -232,6 +232,14 @@ if playdate.isSimulator then
         end
 
         frames(10)
+
+        -- The harness runs muted, which would skip the synth calls entirely. Play one card's
+        -- motif out loud so a wrong sound API call fails here rather than on someone's device.
+        gameState.soundEnabled = true
+        Assets.playCardTones("10C")
+        gameState.soundEnabled = false
+        frames(20)
+
         menuTo(4); press(pd.kButtonA, 5)
 
         for round = 1, 2 do
