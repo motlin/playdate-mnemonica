@@ -1,6 +1,8 @@
 
 -- ===== SCREENSHOT HARNESS (appended to a build copy of main.lua; never shipped) =====
-do
+-- It drives the game with simulator-only calls. If this build is ever uploaded to a device by
+-- mistake, it stays out of the way and the game runs normally.
+if playdate.isSimulator then
     local pd <const> = playdate
     local gfx <const> = playdate.graphics
     local gameState <const> = App.gameState

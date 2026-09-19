@@ -24,6 +24,8 @@ find "$DATA" -maxdepth 1 -type f -delete
 rsync --archive --delete "$ROOT/source/" "$SRC/"
 sed -i '' "s/^bundleID=.*/bundleID=$HARNESS_BUNDLE_ID/" "$SRC/pdxinfo"
 grep -q "^bundleID=$HARNESS_BUNDLE_ID$" "$SRC/pdxinfo"
+# A name nobody can mistake for the real game, in the Simulator or on a device
+sed -i '' "s/^name=.*/name=Mnemonica SCREENSHOT HARNESS/" "$SRC/pdxinfo"
 {
   echo ""
   echo "HARNESS_OUT = \"$OUT\""
@@ -41,5 +43,9 @@ cat "$LOG"
 if ! grep -q "scenario $SCENARIO done" "$LOG"; then
   echo "❌ scenario $SCENARIO did not finish cleanly" >&2
   exit 1
+fi
+# Leave the real game loaded, so "Upload Game to Device" never sends the harness build
+if [ -d "$ROOT/builds/Mnemonica.pdx" ]; then
+  open -g -a "Playdate Simulator" "$ROOT/builds/Mnemonica.pdx"
 fi
 echo "✅ $(find "$OUT" -name "$SCENARIO-*.png" | wc -l | tr -d ' ') screenshots in $OUT"
