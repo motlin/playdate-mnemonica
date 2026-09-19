@@ -1,5 +1,6 @@
 import "App"
 import "Assets"
+import "Layout"
 import "SceneManager"
 
 local pd <const> = playdate
@@ -8,37 +9,37 @@ local gameState <const> = App.gameState
 
 HighScoresScene = {}
 
-local function drawQuizScores(title, scores, y)
-    gfx.drawTextAligned(title, 200, y, kTextAlignment.center)
-    if scores.bestTime then
-        gfx.drawTextAligned("Best Score: " .. scores.bestScore .. "/52", 200, y + 20, kTextAlignment.center)
+local FOOTER_HINTS <const> = { { button = "B", label = "Menu" } }
+local LABEL_X <const> = 40
+local VALUE_X <const> = 360
 
-        local minutes = math.floor(scores.bestTime / 60)
-        local seconds = math.floor(scores.bestTime % 60)
-        gfx.drawTextAligned(string.format("Best Time: %d:%02d", minutes, seconds), 200, y + 40, kTextAlignment.center)
-    else
-        gfx.drawTextAligned("No scores yet", 200, y + 20, kTextAlignment.center)
+local function drawRow(label, value, y)
+    gfx.setFont(Layout.boldFont)
+    gfx.drawText(label, LABEL_X, y)
+    gfx.setFont()
+    gfx.drawTextAligned(value, VALUE_X, y, kTextAlignment.right)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawLine(LABEL_X, y + 28, VALUE_X, y + 28)
+end
+
+local function quizRecord(scores)
+    if not scores.bestTime then
+        return "not played yet"
     end
+    return scores.bestScore .. "/52 in " .. Layout.formatTime(scores.bestTime)
 end
 
 local function draw()
     gfx.clear()
+    Layout.drawTitleBar("High scores")
 
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("High Scores", 200, 20, kTextAlignment.center)
-    gfx.setFont()
+    drawRow("Number to Card", quizRecord(gameState.highScores.numberToCard), 50)
+    drawRow("Card to Number", quizRecord(gameState.highScores.cardToNumber), 100)
 
-    drawQuizScores("-- Number to Card Quiz --", gameState.highScores.numberToCard, 60)
-    drawQuizScores("-- Card to Number Quiz --", gameState.highScores.cardToNumber, 130)
+    local simonRounds = gameState.simonMode.maxRound
+    drawRow("Simon", simonRounds == 1 and "1 round" or (simonRounds .. " rounds"), 150)
 
-    gfx.drawTextAligned("-- Simon Mode --", 200, 190, kTextAlignment.center)
-    if gameState.simonMode.maxRound > 0 then
-        gfx.drawTextAligned("Best: Round " .. gameState.simonMode.maxRound, 200, 205, kTextAlignment.center)
-    else
-        gfx.drawTextAligned("No scores yet", 200, 205, kTextAlignment.center)
-    end
-
-    gfx.drawTextAligned("Press (B) to return to menu", 200, 225, kTextAlignment.center)
+    Layout.drawFooter(FOOTER_HINTS, false)
 end
 
 function HighScoresScene.enter()

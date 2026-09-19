@@ -1,9 +1,9 @@
 -- Browse the whole stack without being tested.
 
-import "CoreLibs/ui"
 import "App"
+import "Layout"
+import "FactView"
 import "Assets"
-import "Deck"
 import "Picker"
 import "SceneManager"
 
@@ -16,25 +16,13 @@ StudyScene = {}
 
 local picker
 
+local FOOTER_HINTS <const> = { { button = "B", label = "Menu" } }
+
 local function draw()
-    local position = picker:getSelection()
-
     gfx.clear()
-
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Study Mode", 200, 10, kTextAlignment.center)
-    gfx.drawTextAligned("Position " .. position, 200, 50, kTextAlignment.center)
-    gfx.setFont()
-
-    local cardAtPosition = Deck.mnemonicaStack[position]
-    Assets.drawCard(cardAtPosition, 200, 110, 1)
-    gfx.drawTextAligned(cardAtPosition, 200, 160, kTextAlignment.center)
-
-    if pd.isCrankDocked() then
-        pd.ui.crankIndicator:draw()
-    end
-
-    gfx.drawTextAligned("Crank/D-pad: Browse | B: Menu", 200, 200, kTextAlignment.center)
+    Layout.drawTitleBar("Study", nil, picker:getSelection() .. "/52")
+    FactView.drawStudyCard(picker:getSelection())
+    Layout.drawFooter(FOOTER_HINTS, true)
 end
 
 function StudyScene.enter()

@@ -3,7 +3,7 @@
 import "App"
 import "Assets"
 import "SceneManager"
-import "UIHelpers"
+import "Layout"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -26,60 +26,37 @@ local function getOptions()
     return { PLAY_AGAIN, MAIN_MENU }
 end
 
-local function drawHeading(text, y)
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
-    gfx.setFont()
-end
+local FOOTER_HINTS <const> = { { button = "A", label = "Select" } }
 
 local function draw()
     gfx.clear()
 
     local isNewBest = gameState.lastResult.isNewBest
     local previousBest = gameState.lastResult.previousBest
+    local mistakeCount = #gameState:getMistakes()
 
-    drawHeading(isNewBest and "NEW HIGH SCORE!" or "Quiz Complete!", 10)
-    drawHeading("Score: " .. gameState:getScore() .. "/52", 35)
+    Layout.drawTitleBar(isNewBest and "New best!" or "Quiz complete")
 
-    gfx.drawTextAligned(gameState:getScorePercentage() .. "% correct", 200, 55, kTextAlignment.center)
-    gfx.drawTextAligned("Time: " .. gameState:getFormattedTime(), 200, 70, kTextAlignment.center)
+    Layout.drawLargeText(gameState:getScore() .. "/52", 200, 50)
 
-    local showPreviousBest = previousBest and not isNewBest
-    if showPreviousBest then
-        gfx.drawTextAligned("-- Previous Best --", 200, 90, kTextAlignment.center)
-        local bestMinutes = math.floor(previousBest.bestTime / 60)
-        local bestSeconds = math.floor(previousBest.bestTime % 60)
-        local bestScoreText = string.format("Best: %d/52 (%d:%02d)", previousBest.bestScore, bestMinutes, bestSeconds)
-        gfx.drawTextAligned(bestScoreText, 200, 105, kTextAlignment.center)
-    end
-
-    local mistakes = gameState:getMistakes()
-    local mistakesSectionY = showPreviousBest and 120 or 95
-    local previewCount = math.min(3, #mistakes)
-    if #mistakes > 0 then
-        gfx.drawTextAligned("-- Mistakes: " .. #mistakes .. " --", 200, mistakesSectionY, kTextAlignment.center)
-
-        for i = 1, previewCount do
-            local mistake = mistakes[i]
-            local mistakeText = "Pos " .. mistake.position .. ": " .. mistake.correctAnswer
-                .. " (you: " .. mistake.userAnswer .. ")"
-            gfx.drawText(mistakeText, 40, mistakesSectionY + (i * 15))
-        end
-
-        if #mistakes > 3 then
-            gfx.drawTextAligned("... and " .. (#mistakes - 3) .. " more", 200, mistakesSectionY + (4 * 15), kTextAlignment.center)
-        end
+    local details = gameState:getFormattedTime()
+    if mistakeCount == 0 then
+        details = details .. "  -  perfect score"
+    elseif mistakeCount == 1 then
+        details = details .. "  -  1 mistake"
     else
-        gfx.drawTextAligned("-- Perfect Score! --", 200, mistakesSectionY, kTextAlignment.center)
+        details = details .. "  -  " .. mistakeCount .. " mistakes"
+    end
+    gfx.drawTextAligned(details, 200, 74, kTextAlignment.center)
+
+    if previousBest then
+        local label = isNewBest and "Beat " or "Best "
+        local bestText = label .. previousBest.bestScore .. "/52 in " .. Layout.formatTime(previousBest.bestTime)
+        gfx.drawTextAligned(bestText, 200, 96, kTextAlignment.center)
     end
 
-    local menuY = mistakesSectionY + previewCount * 15 + 25
-    for i, option in ipairs(getOptions()) do
-        local y = menuY + ((i - 1) * 20)
-        UIHelpers.drawMenuItem(option, 200, y, 200, i == SummaryScene.selectedOption)
-    end
-
-    gfx.drawTextAligned("Up/Down: Select | A: Confirm", 200, 220, kTextAlignment.center)
+    Layout.drawList(getOptions(), SummaryScene.selectedOption, 130, 28)
+    Layout.drawFooter(FOOTER_HINTS, false)
 end
 
 -- Returning from the mistakes list passes the option to keep selected.

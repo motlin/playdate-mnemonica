@@ -124,6 +124,13 @@ do
 
         menuTo(6); press(pd.kButtonA, 5)
         for i = 1, 6 do SettingsScene.selection = i; frames(2); shot("settings-sel" .. i) end
+        gameState.cardStats[1].timesAsked = 5
+        SettingsScene.selection = 3; frames(1); press(pd.kButtonA, 3); shot("settings-reset-armed")
+        expect(gameState.cardStats[1].timesAsked == 5, "first A on Reset Statistics only asks for confirmation")
+        press(pd.kButtonDown, 2); press(pd.kButtonUp, 2); press(pd.kButtonA, 3)
+        expect(gameState.cardStats[1].timesAsked == 5, "moving away cancels the pending reset")
+        press(pd.kButtonA, 3); shot("settings-reset-done")
+        expect(gameState.cardStats[1].timesAsked == 0, "second A resets statistics")
         SettingsScene.selection = 5; frames(1); press(pd.kButtonA, 5); shot("credits")
         press(pd.kButtonB, 3); press(pd.kButtonB, 3)
         shot("menu-final")

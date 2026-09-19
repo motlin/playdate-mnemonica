@@ -1,5 +1,6 @@
 import "App"
 import "Assets"
+import "Layout"
 import "SceneManager"
 
 local pd <const> = playdate
@@ -7,43 +8,24 @@ local gfx <const> = playdate.graphics
 
 CreditsScene = {}
 
-local marbleMadnessFont = gfx.font.new("fonts/MarbleMadness")
-assert(marbleMadnessFont, "Failed to load Marble Madness font")
+local FOOTER_HINTS <const> = { { button = "B", label = "Back" } }
 
 local function draw()
     gfx.clear()
+    Layout.drawTitleBar("Credits")
 
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Credits", 200, 15, kTextAlignment.center)
+    gfx.setFont(Layout.boldFont)
+    gfx.drawTextAligned("Mnemonica Stack Memorizer", 200, 40, kTextAlignment.center)
+    gfx.setFont()
+    gfx.drawTextAligned("by Mr. Poopybutthole", 200, 64, kTextAlignment.center)
 
-    gfx.setFont(marbleMadnessFont)
+    gfx.setFont(Layout.boldFont)
+    gfx.drawTextAligned("Playing card art", 200, 110, kTextAlignment.center)
+    gfx.setFont()
+    gfx.drawTextAligned("Free deck from the Playdate developer forum", 200, 134, kTextAlignment.center)
+    gfx.drawTextAligned("devforum.play.date/t/994", 200, 156, kTextAlignment.center)
 
-    local leftX = 40
-    local lineHeight = 10
-    local y = 45
-
-    gfx.drawText("Mnemonica Stack Memorizer", leftX, y)
-    y = y + lineHeight
-    gfx.drawText("for Playdate", leftX, y)
-    y = y + lineHeight * 1.5
-
-    gfx.drawText("Created by:", leftX, y)
-    y = y + lineHeight
-    gfx.drawText("  Mr. Poopybutthole", leftX, y)
-    y = y + lineHeight * 1.5
-
-    gfx.drawText("Playing Card Assets:", leftX, y)
-    y = y + lineHeight
-    gfx.drawText("  Free playing cards from:", leftX, y)
-    y = y + lineHeight
-    gfx.drawText("  devforum.play.date/t/", leftX, y)
-    y = y + lineHeight
-    gfx.drawText("  playing-card-deck-imagetable-", leftX, y)
-    y = y + lineHeight
-    gfx.drawText("  free-for-your-card-game/994", leftX, y)
-    y = y + lineHeight * 2
-
-    gfx.drawText("Press B to return", leftX, y)
+    Layout.drawFooter(FOOTER_HINTS, false)
 end
 
 function CreditsScene.update()

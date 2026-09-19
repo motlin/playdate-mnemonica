@@ -1,9 +1,8 @@
-import "CoreLibs/ui"
 import "App"
+import "Layout"
 import "Assets"
 import "SceneManager"
 import "Picker"
-import "UIHelpers"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -33,24 +32,13 @@ local function newPicker()
     picker:select(MenuScene.selection)
 end
 
+local FOOTER_HINTS <const> = { { button = "A", label = "Start" } }
+
 local function draw()
     gfx.clear()
-
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Mnemonica Stack", 200, 10, kTextAlignment.center)
-    gfx.drawTextAligned("Memorizer", 200, 25, kTextAlignment.center)
-
-    gfx.setFont(gfx.getSystemFont())
-
-    UIHelpers.drawMenuList(menuItems, 200, 55, 280, MenuScene.selection, 25)
-
-    if pd.isCrankDocked() then
-        pd.ui.crankIndicator:draw()
-    end
-
-    gfx.setFont()
-    gfx.drawTextAligned("Crank or D-pad to select", 200, 195, kTextAlignment.center)
-    gfx.drawTextAligned("(A) Start selected mode", 200, 210, kTextAlignment.center)
+    Layout.drawTitleBar("Mnemonica")
+    Layout.drawList(menuItems, MenuScene.selection, 33, 30)
+    Layout.drawFooter(FOOTER_HINTS, true)
 end
 
 local function startSelectedMode()

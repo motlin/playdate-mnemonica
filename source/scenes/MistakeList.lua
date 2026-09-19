@@ -1,6 +1,7 @@
 -- Scrollable list of a finished quiz's mistakes, and the way into reviewing them.
 
 import "App"
+import "Layout"
 import "Assets"
 import "Deck"
 import "SceneManager"
@@ -13,44 +14,46 @@ local sounds <const> = Assets.sounds
 MistakeListScene = {}
 
 local scrollOffset = 0
-local maxVisibleLines = 9
+local maxVisibleLines = 8
+local ROW_TOP <const> = 32
+local ROW_HEIGHT <const> = 22
+local FOOTER_HINTS <const> = { { button = "A", label = "Review these" }, { button = "B", label = "Back" } }
+
+local function drawScrollArrow(y, pointsUp)
+    local tip = pointsUp and y or y + 6
+    local base = pointsUp and y + 6 or y
+    gfx.fillTriangle(388, tip, 382, base, 394, base)
+end
 
 local function draw()
     gfx.clear()
 
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Mistakes Review", 200, 10, kTextAlignment.center)
-    gfx.setFont()
-
     local mistakes = gameState:getMistakes()
-    gfx.drawTextAligned("Total: " .. #mistakes .. " mistakes", 200, 30, kTextAlignment.center)
+    local lastVisible = math.min(#mistakes, scrollOffset + maxVisibleLines)
+    Layout.drawTitleBar("Mistakes", nil, (scrollOffset + 1) .. "-" .. lastVisible .. " of " .. #mistakes)
 
-    local startY = 50
-    local lineHeight = 18
-
-    for line = 1, math.min(#mistakes, maxVisibleLines) do
+    local answeredWithCard = gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD
+    for line = 1, lastVisible - scrollOffset do
         local mistake = mistakes[line + scrollOffset]
-        local y = startY + ((line - 1) * lineHeight)
+        local y = ROW_TOP + (line - 1) * ROW_HEIGHT
 
-        gfx.drawText("Pos " .. mistake.position .. ":", 20, y)
+        gfx.setFont(Layout.boldFont)
+        gfx.drawText(mistake.position .. " is " .. Deck.mnemonicaStack[mistake.position], 24, y)
+        gfx.setFont()
 
-        if gameState.currentMode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-            gfx.drawText(mistake.correctAnswer, 80, y)
-        else
-            gfx.drawText(Deck.mnemonicaStack[mistake.position] .. " -> " .. mistake.position, 80, y)
-        end
-
-        gfx.drawTextAligned("(you: " .. mistake.userAnswer .. ")", 380, y, kTextAlignment.right)
+        local answer = answeredWithCard and mistake.userAnswer or ("position " .. mistake.userAnswer)
+        gfx.drawTextAligned("you said " .. answer, 372, y, kTextAlignment.right)
     end
 
+    gfx.setColor(gfx.kColorBlack)
     if scrollOffset > 0 then
-        gfx.drawTextAligned("^ more", 200, startY - 10, kTextAlignment.center)
+        drawScrollArrow(ROW_TOP + 4, true)
     end
-    if scrollOffset + maxVisibleLines < #mistakes then
-        gfx.drawTextAligned("v more", 200, startY + (maxVisibleLines * lineHeight), kTextAlignment.center)
+    if lastVisible < #mistakes then
+        drawScrollArrow(ROW_TOP + maxVisibleLines * ROW_HEIGHT - 14, false)
     end
 
-    gfx.drawTextAligned("B: Back | A: Start Review Quiz", 200, 220, kTextAlignment.center)
+    Layout.drawFooter(FOOTER_HINTS, false)
 end
 
 function MistakeListScene.enter()

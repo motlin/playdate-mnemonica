@@ -49,7 +49,7 @@ local function drawNumberTile(number, x, y, scale)
     if scale == 2 then
         gfx.fillRoundRect(x - width / 2, y - height / 2, width, height, TILE_CORNER * scale)
         gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
-        Layout.drawLargeNumber(number, x, y)
+        Layout.drawLargeText(tostring(number), x, y)
         gfx.setImageDrawMode(gfx.kDrawModeCopy)
     else
         gfx.setColor(gfx.kColorWhite)

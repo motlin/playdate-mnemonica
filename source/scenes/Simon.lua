@@ -4,6 +4,7 @@ import "AnswerDial"
 import "App"
 import "Assets"
 import "Deck"
+import "FactView"
 import "Layout"
 import "SceneManager"
 
@@ -59,9 +60,7 @@ local function drawShowing()
     local position = simon.sequence[simon.sequenceIndex]
     Layout.drawTitleBar("Remember", roundLabel(), simon.sequenceIndex .. "/" .. simon.currentRound)
 
-    Assets.drawCard(Deck.mnemonicaStack[position], 130, CARD_Y, 2)
-    gfx.drawTextAligned("Position", 280, CARD_Y - 40, kTextAlignment.center)
-    Layout.drawLargeNumber(position, 280, CARD_Y + 5)
+    FactView.drawStudyCard(position)
 
     Layout.drawFooter({ { button = "A", label = "Next" }, { button = "B", label = "Menu" } }, false)
 end
@@ -115,12 +114,12 @@ local function drawFeedback()
 
     local completedRounds = simon.currentRound - 1
     gfx.drawTextAligned("Rounds completed", 105, Layout.CONTENT_TOP + 30, kTextAlignment.center)
-    Layout.drawLargeNumber(completedRounds, 105, Layout.CONTENT_CENTER_Y - 10)
+    Layout.drawLargeText(tostring(completedRounds), 105, Layout.CONTENT_CENTER_Y - 10)
     local bestText = simon.isNewBest and "New best!" or ("Best: " .. simon.maxRound)
     gfx.drawTextAligned(bestText, 105, Layout.CONTENT_CENTER_Y + 30, kTextAlignment.center)
 
     local position = simon.sequence[simon.playerIndex]
-    Layout.drawPositionWithCard(position, Deck.mnemonicaStack[position], 285, Assets.drawCard)
+    FactView.drawFact(position, 285)
 
     Layout.drawFooter({ { button = "A", label = "Play again" }, { button = "B", label = "Menu" } }, false)
 end

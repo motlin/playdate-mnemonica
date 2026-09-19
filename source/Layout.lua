@@ -71,14 +71,6 @@ function Layout.drawOutlinedTitleBar(title, left, right)
     gfx.fillRect(0, Layout.TITLE_HEIGHT - 3, Layout.SCREEN_WIDTH, 3)
 end
 
--- "Position 31" over its card at double size: the fact every screen is teaching.
-function Layout.drawPositionWithCard(position, cardName, x, drawCard)
-    gfx.setFont(Layout.boldFont)
-    gfx.drawTextAligned("Position " .. position, x, Layout.CONTENT_TOP + 6, kTextAlignment.center)
-    gfx.setFont()
-    drawCard(cardName, x, Layout.CONTENT_TOP + 28 + 70, 2)
-end
-
 local BUTTON_RADIUS <const> = 8
 local BUTTON_LABEL_GAP <const> = 4
 local HINT_GAP <const> = 16
@@ -124,11 +116,10 @@ function Layout.drawFooter(hints, usesCrank)
     end
 end
 
-local doubleSizeNumbers = {}
+local doubleSizeTexts = {}
 
-local function getDoubleSizeNumber(number)
-    if not doubleSizeNumbers[number] then
-        local text = tostring(number)
+local function getDoubleSizeText(text)
+    if not doubleSizeTexts[text] then
         local image = gfx.image.new(Layout.boldFont:getTextWidth(text), Layout.boldFont:getHeight())
         gfx.pushContext(image)
         -- The cached image must be black whatever draw mode the first caller happens to be in
@@ -136,12 +127,38 @@ local function getDoubleSizeNumber(number)
         gfx.setFont(Layout.boldFont)
         gfx.drawText(text, 0, 0)
         gfx.popContext()
-        doubleSizeNumbers[number] = image:scaledImage(2)
+        doubleSizeTexts[text] = image:scaledImage(2)
     end
-    return doubleSizeNumbers[number]
+    return doubleSizeTexts[text]
 end
 
--- A number in double-size bold, centred at x, y. Honours the current image draw mode.
-function Layout.drawLargeNumber(number, x, y)
-    getDoubleSizeNumber(number):drawCentered(x, y)
+-- Short text in double-size bold, centred at x, y. Honours the current image draw mode.
+function Layout.drawLargeText(text, x, y)
+    getDoubleSizeText(text):drawCentered(x, y)
+end
+
+local LIST_ROW_WIDTH <const> = 210
+local LIST_ROW_PADDING <const> = 3
+
+-- A vertical list of choices with the selected row inverted.
+function Layout.drawList(items, selection, top, rowHeight)
+    for row, item in ipairs(items) do
+        local y = top + (row - 1) * rowHeight
+        if row == selection then
+            local barHeight = Layout.boldFont:getHeight() + LIST_ROW_PADDING * 2
+            gfx.setColor(gfx.kColorBlack)
+            gfx.fillRoundRect((Layout.SCREEN_WIDTH - LIST_ROW_WIDTH) / 2, y - LIST_ROW_PADDING, LIST_ROW_WIDTH, barHeight, 4)
+            gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+            gfx.setFont(Layout.boldFont)
+            gfx.drawTextAligned(item, Layout.SCREEN_WIDTH / 2, y, kTextAlignment.center)
+            gfx.setFont()
+            gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        else
+            gfx.drawTextAligned(item, Layout.SCREEN_WIDTH / 2, y, kTextAlignment.center)
+        end
+    end
+end
+
+function Layout.formatTime(seconds)
+    return string.format("%d:%02d", seconds // 60, math.floor(seconds % 60))
 end

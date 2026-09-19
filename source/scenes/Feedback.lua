@@ -2,7 +2,7 @@
 
 import "App"
 import "Assets"
-import "Deck"
+import "FactView"
 import "Layout"
 import "SceneManager"
 
@@ -13,8 +13,6 @@ local sounds <const> = Assets.sounds
 
 FeedbackScene = {}
 
-local LEFT_X <const> = 105
-local RIGHT_X <const> = 285
 local FOOTER_HINTS <const> = { { button = "A", label = "Continue" } }
 
 local function draw()
@@ -22,23 +20,14 @@ local function draw()
 
     local score = gameState:getScore() .. "/" .. gameState:getQuestionsAnswered()
     local position = gameState:getCurrentPosition()
-    local card = Deck.mnemonicaStack[position]
 
     if gameState.userWasCorrect then
         Layout.drawTitleBar("Correct", score, gameState:getFormattedTime())
-        Layout.drawPositionWithCard(position, card, Layout.SCREEN_WIDTH / 2, Assets.drawCard)
+        FactView.drawFact(position, Layout.SCREEN_WIDTH / 2)
     else
         Layout.drawOutlinedTitleBar("Wrong", score, gameState:getFormattedTime())
-
-        if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-            gfx.drawTextAligned("You picked", LEFT_X, Layout.CONTENT_TOP + 30, kTextAlignment.center)
-            Assets.drawCard(gameState.userAnswer, LEFT_X, Layout.CONTENT_CENTER_Y + 8, 1)
-        else
-            gfx.drawTextAligned("You said", LEFT_X, Layout.CONTENT_TOP + 50, kTextAlignment.center)
-            Layout.drawLargeNumber(tonumber(gameState.userAnswer), LEFT_X, Layout.CONTENT_CENTER_Y + 8)
-        end
-
-        Layout.drawPositionWithCard(position, card, RIGHT_X, Assets.drawCard)
+        local answeredWithCard = gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD
+        FactView.drawMistake(position, gameState.userAnswer, answeredWithCard)
     end
 
     Layout.drawFooter(FOOTER_HINTS, false)
