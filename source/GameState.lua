@@ -59,11 +59,9 @@ function GameState:new()
     }
 
     -- UI state (temporary, not part of session)
-    state.selectedAnswer = 1  -- Currently selected answer (card index or position)
     state.correctAnswer = ""  -- Correct answer for current question
     state.userAnswer = ""     -- What the user selected
     state.userWasCorrect = false
-    state.userPassed = false
 
     -- High scores
     state.highScores = GameState.emptyHighScores()
@@ -132,11 +130,9 @@ function GameState:startQuiz(mode, useSpacedRepetition)
     end
 
     -- Reset UI state
-    self.selectedAnswer = 1
     self.correctAnswer = ""
     self.userAnswer = ""
     self.userWasCorrect = false
-    self.userPassed = false
 end
 
 -- Check if we have enough data to use spaced repetition
@@ -231,19 +227,11 @@ function GameState:buildSpacedRepetitionOrder()
 end
 
 -- Submit an answer
-function GameState:submitAnswer(answer, passed)
+function GameState:submitAnswer(answer)
     self.userAnswer = answer
+    self.userWasCorrect = answer == self.correctAnswer
 
-    -- Explicitly handle the passed parameter
-    if passed == true then
-        self.userPassed = true
-        self.userWasCorrect = false
-    else
-        self.userPassed = false
-        self.userWasCorrect = (answer == self.correctAnswer)
-    end
-
-    self.currentSession:recordAnswer(answer, self.correctAnswer, passed)
+    self.currentSession:recordAnswer(answer, self.correctAnswer)
     self:updateCardStats(self:getCurrentPosition(), self.userWasCorrect)
 
     self.quizState = GameState.QUIZ_STATES.FEEDBACK
@@ -255,7 +243,6 @@ function GameState:nextQuestion()
         self.quizState = GameState.QUIZ_STATES.QUESTION
         self.userAnswer = ""
         self.userWasCorrect = false
-        self.userPassed = false
     else
         self:completeQuiz()
     end
@@ -483,11 +470,9 @@ function GameState:startMistakeReview()
         self.currentMode = GameState.MODES.MISTAKE_REVIEW
 
         -- Reset UI state
-        self.selectedAnswer = 1
         self.correctAnswer = ""
         self.userAnswer = ""
         self.userWasCorrect = false
-        self.userPassed = false
 
         return true
     end
@@ -512,11 +497,9 @@ function GameState:advanceMistakeStudy()
     self.currentSession = self.mistakeReviewMode.quizSession
     self.quizState = GameState.QUIZ_STATES.QUESTION
 
-    self.selectedAnswer = 1
     self.correctAnswer = ""
     self.userAnswer = ""
     self.userWasCorrect = false
-    self.userPassed = false
 end
 
 -- Get session summary

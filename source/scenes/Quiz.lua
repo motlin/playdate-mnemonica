@@ -63,9 +63,9 @@ end
 
 local function checkAnswer()
     if isNumberToCard() then
-        gameState:submitAnswer(Deck.uspccOrder[QuizScene.dial:getSelection()], false)
+        gameState:submitAnswer(Deck.uspccOrder[QuizScene.dial:getSelection()])
     else
-        gameState:submitAnswer(tostring(QuizScene.dial:getSelection()), false)
+        gameState:submitAnswer(tostring(QuizScene.dial:getSelection()))
     end
 
     if gameState.userWasCorrect then

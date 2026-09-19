@@ -5,7 +5,7 @@ local function finishQuizWithMistakes(gameState, mistakeCount)
     gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
     for question = 1, 52 do
         gameState.correctAnswer = "RIGHT"
-        gameState:submitAnswer(question <= mistakeCount and "WRONG" or "RIGHT", false)
+        gameState:submitAnswer(question <= mistakeCount and "WRONG" or "RIGHT")
         gameState:nextQuestion()
     end
 end
@@ -63,13 +63,13 @@ describe("GameState card statistics", function()
         gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
         for _ = 1, 51 do
             gameState.correctAnswer = "RIGHT"
-            gameState:submitAnswer("RIGHT", false)
+            gameState:submitAnswer("RIGHT")
             gameState:nextQuestion()
         end
         assert.is_nil(stub.writeCounts.cardstats)
 
         gameState.correctAnswer = "RIGHT"
-        gameState:submitAnswer("RIGHT", false)
+        gameState:submitAnswer("RIGHT")
         gameState:nextQuestion()
 
         assert.are.equal(1, stub.writeCounts.cardstats)
@@ -80,7 +80,7 @@ describe("GameState card statistics", function()
         local gameState = GameState:new()
         gameState:startQuiz(GameState.MODES.QUIZ_NUMBER_TO_CARD)
         gameState.correctAnswer = "RIGHT"
-        gameState:submitAnswer("RIGHT", false)
+        gameState:submitAnswer("RIGHT")
         stub.advanceSeconds(10)
 
         gameState:suspend()

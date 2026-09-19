@@ -5,7 +5,7 @@ local function playQuiz(gameState, mode, correctCount, seconds)
     gameState:startQuiz(mode)
     for question = 1, 52 do
         gameState.correctAnswer = "RIGHT"
-        gameState:submitAnswer(question <= correctCount and "RIGHT" or "WRONG", false)
+        gameState:submitAnswer(question <= correctCount and "RIGHT" or "WRONG")
         if question == 52 then stub.advanceSeconds(seconds) end
         gameState:nextQuestion()
     end
@@ -56,7 +56,7 @@ describe("GameState high scores", function()
 
         for _ = 1, 51 do
             gameState.correctAnswer = "RIGHT"
-            gameState:submitAnswer("RIGHT", false)
+            gameState:submitAnswer("RIGHT")
             gameState:nextQuestion()
         end
 

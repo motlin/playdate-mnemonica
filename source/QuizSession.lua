@@ -36,7 +36,6 @@ function QuizSession:new(mode, totalQuestions)
         questionsAnswered = 0,
         questionsCorrect = 0,
         questionsIncorrect = 0,
-        questionsPassed = 0,
         score = 0,
         elapsedTime = 0,
         accuracy = 0  -- Percentage
@@ -100,7 +99,7 @@ function QuizSession:getCurrentQuestion()
 end
 
 -- Record an answer for the current question
-function QuizSession:recordAnswer(userAnswer, correctAnswer, passed)
+function QuizSession:recordAnswer(userAnswer, correctAnswer)
     local question = self:getCurrentQuestion()
     if not question then return false end
 
@@ -110,11 +109,7 @@ function QuizSession:recordAnswer(userAnswer, correctAnswer, passed)
     -- Calculate time taken for this question
     local timeTaken = answeredAt - question.askedAt
 
-    -- Determine if answer is correct
-    local isCorrect = false
-    if not passed then
-        isCorrect = (userAnswer == correctAnswer)
-    end
+    local isCorrect = userAnswer == correctAnswer
 
     -- Create answer record
     local answerRecord = {
@@ -123,7 +118,6 @@ function QuizSession:recordAnswer(userAnswer, correctAnswer, passed)
         userAnswer = userAnswer,
         correctAnswer = correctAnswer,
         isCorrect = isCorrect,
-        passed = passed,
         timeTaken = timeTaken,
         answeredAt = answeredAt
     }
@@ -134,16 +128,7 @@ function QuizSession:recordAnswer(userAnswer, correctAnswer, passed)
     -- Update statistics
     self.statistics.questionsAnswered = self.statistics.questionsAnswered + 1
 
-    if passed then
-        self.statistics.questionsPassed = self.statistics.questionsPassed + 1
-        -- Track as mistake for review
-        table.insert(self.mistakes, {
-            position = question.position,
-            correctAnswer = correctAnswer,
-            userAnswer = "PASSED",
-            questionIndex = self.currentQuestionIndex
-        })
-    elseif isCorrect then
+    if isCorrect then
         self.statistics.questionsCorrect = self.statistics.questionsCorrect + 1
         self.statistics.score = self.statistics.score + 1
     else
@@ -263,7 +248,6 @@ function QuizSession:getSummary()
         questionsAnswered = self.statistics.questionsAnswered,
         questionsCorrect = self.statistics.questionsCorrect,
         questionsIncorrect = self.statistics.questionsIncorrect,
-        questionsPassed = self.statistics.questionsPassed,
         accuracy = self.statistics.accuracy,
         elapsedTime = self.statistics.elapsedTime,
         formattedTime = self:getFormattedTime(),
