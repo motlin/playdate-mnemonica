@@ -36,6 +36,7 @@ screenshots output="builds/screenshots":
     tools/screenshots/run.sh complete_many "{{output}}"
     tools/screenshots/run.sh perfect "{{output}}"
     tools/screenshots/run.sh review "{{output}}"
+    tools/screenshots/run.sh simon "{{output}}"
 
 # 💨 Play through the game in the Simulator and fail on any crash
 smoke: screenshots

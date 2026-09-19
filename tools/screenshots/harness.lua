@@ -199,6 +199,59 @@ do
         expect(gameState.currentSession.totalQuestions == 52, "original session restored")
     end
 
+    -- Plays Simon through three rounds, then loses, checking the rules on the way.
+    scenarios.simon = function()
+        local PHASES <const> = SimonGame.PHASES
+
+        local function watchSequence(round)
+            for card = 1, round do
+                expect(SimonScene.game.phase == PHASES.SHOWING, "round " .. round .. " shows card " .. card)
+                if card == round then shot("round" .. round .. "-showing-card" .. card) end
+                press(pd.kButtonA, 3)
+            end
+            expect(SimonScene.game.phase == PHASES.WAITING, "round " .. round .. " waits after its whole sequence")
+            press(pd.kButtonA, 3)
+        end
+
+        local function answerQuestion(round, card, correct)
+            local game = SimonScene.game
+            expect(game.phase == PHASES.INPUT, "round " .. round .. " asks for card " .. card)
+            expect(game.answerIndex == card, "round " .. round .. " is on card " .. card .. ", not " .. tostring(game.answerIndex))
+            expect(SimonScene.dial:getSelection() == 1, "round " .. round .. " card " .. card .. " starts from a clean dial")
+            shot("round" .. round .. "-input-card" .. card)
+
+            local answer = game:correctAnswer()
+            local index = type(answer) == "number" and answer or indexOf(Deck.uspccOrder, answer)
+            SimonScene.dial:select(correct and index or index % 52 + 1)
+            frames(12)
+            press(pd.kButtonA, 3)
+            shot("round" .. round .. "-feedback-card" .. card)
+            expect(game.lastAnswerCorrect == correct, "round " .. round .. " card " .. card .. " judged correctly")
+        end
+
+        frames(10)
+        menuTo(4); press(pd.kButtonA, 5)
+
+        for round = 1, 2 do
+            watchSequence(round)
+            for card = 1, round do
+                answerQuestion(round, card, true)
+                press(pd.kButtonA, 3)
+            end
+        end
+
+        watchSequence(3)
+        answerQuestion(3, 1, true)
+        press(pd.kButtonA, 3)
+        answerQuestion(3, 2, false)
+        expect(SimonScene.game.isOver, "a wrong answer ends the game")
+        expect(SimonScene.game:completedRounds() == 2, "two rounds were completed")
+        expect(gameState.simonMode.maxRound == 2, "the record is saved")
+
+        press(pd.kButtonA, 5); shot("new-game")
+        expect(SimonScene.game.round == 1 and #SimonScene.game.sequence == 1, "A starts a fresh game")
+    end
+
     -- Not a playthrough: draws the launcher card and icon from the game's own font and card art.
     scenarios.launcher_art = function()
         local function save(name, width, height, drawContents)

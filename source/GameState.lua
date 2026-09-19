@@ -44,19 +44,8 @@ function GameState:new()
     -- Mistake review mode
     state.mistakeReviewMode = nil  -- Will be initialized when starting mistake review
 
-    -- Simon mode state
-    state.simonMode = {
-        sequence = {},        -- Current sequence of positions to remember
-        playerIndex = 1,      -- Current position in sequence the player is at
-        currentRound = 0,     -- Current round (length of sequence)
-        showingSequence = false,  -- Whether we're showing the sequence
-        sequenceIndex = 1,    -- Current index when showing sequence
-        displayTimer = 0,     -- Timer for showing each card
-        phase = "SHOWING",    -- SHOWING, WAITING, INPUT, FEEDBACK
-        isCorrect = true,     -- Track if player is correct so far
-        maxRound = 0,         -- Track best performance
-        selectedInput = "card"  -- "card" or "number" - what player is selecting
-    }
+    -- Simon mode's record: the most rounds completed in one game
+    state.simonMode = { maxRound = 0 }
 
     -- UI state (temporary, not part of session)
     state.correctAnswer = ""  -- Correct answer for current question

@@ -1,4 +1,5 @@
 -- Simon mode: watch a growing sequence of stack positions, then repeat it from memory.
+-- The rules live in SimonGame; this scene shows them and turns button presses into moves.
 
 import "AnswerDial"
 import "App"
@@ -7,62 +8,68 @@ import "Deck"
 import "FactView"
 import "Layout"
 import "SceneManager"
+import "SimonGame"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
 local gameState <const> = App.gameState
-local simon <const> = gameState.simonMode
 local sounds <const> = Assets.sounds
+local PHASES <const> = SimonGame.PHASES
+local INPUT_KINDS <const> = SimonGame.INPUT_KINDS
 
 SimonScene = {}
 
 -- Frames each card of the sequence stays on screen
-local framesPerCard = 90
-
-local function randomInput()
-    return math.random() < 0.5 and "card" or "number"
-end
-
-local function startRound()
-    simon.currentRound = simon.currentRound + 1
-    table.insert(simon.sequence, math.random(1, 52))
-
-    simon.phase = "SHOWING"
-    simon.sequenceIndex = 1
-    simon.displayTimer = 0
-    simon.playerIndex = 1
-    simon.selectedInput = "card"
-end
-
-local function startGame()
-    simon.sequence = {}
-    simon.currentRound = 0
-    simon.isCorrect = true
-    startRound()
-end
-
+local FRAMES_PER_CARD <const> = 90
 local QUESTION_CARD_X <const> = 70
 local CARD_Y <const> = Layout.CONTENT_CENTER_Y - 7
 
+local SHOWING_HINTS <const> = { { button = "A", label = "Next" }, { button = "B", label = "Menu" } }
+local WAITING_HINTS <const> = { { button = "A", label = "Begin" }, { button = "B", label = "Menu" } }
+local INPUT_HINTS <const> = { { button = "A", label = "Confirm" }, { button = "B", label = "Menu" } }
+local CORRECT_HINTS <const> = { { button = "A", label = "Continue" }, { button = "B", label = "Menu" } }
+local GAME_OVER_HINTS <const> = { { button = "A", label = "Play again" }, { button = "B", label = "Menu" } }
+
+local game
+local displayTimer
+local dialQuestionNumber
+
+local function startGame()
+    game = SimonGame:new({
+        bestRounds = gameState.simonMode.maxRound,
+        randomPosition = function() return math.random(1, 52) end,
+        randomInputKind = function()
+            return math.random() < 0.5 and INPUT_KINDS.CARD or INPUT_KINDS.POSITION
+        end,
+    })
+    SimonScene.game = game
+    displayTimer = 0
+    dialQuestionNumber = nil
+end
+
+-- Every question gets a new dial. A dial kept from the previous question would still be
+-- sitting on that answer, which in the next round is the first answer again.
+local function dialForCurrentQuestion()
+    if dialQuestionNumber ~= game.questionNumber then
+        dialQuestionNumber = game.questionNumber
+        if game.inputKind == INPUT_KINDS.CARD then
+            SimonScene.dial = AnswerDial.newCardDial(AnswerDial.FULL_WIDTH)
+        else
+            SimonScene.dial = AnswerDial.newNumberDial(AnswerDial.RIGHT_SIDE)
+        end
+    end
+    return SimonScene.dial
+end
+
 local function roundLabel()
-    return "Round " .. simon.currentRound
+    return "Round " .. game.round
 end
 
 local function drawShowing()
     gfx.clear()
-
-    -- The frame on which the last card times out is drawn after the sequence has run out
-    if simon.sequenceIndex > #simon.sequence then
-        Layout.drawTitleBar("Simon", roundLabel())
-        return
-    end
-
-    local position = simon.sequence[simon.sequenceIndex]
-    Layout.drawTitleBar("Remember", roundLabel(), simon.sequenceIndex .. "/" .. simon.currentRound)
-
-    FactView.drawStudyCard(position)
-
-    Layout.drawFooter({ { button = "A", label = "Next" }, { button = "B", label = "Menu" } }, false)
+    Layout.drawTitleBar("Remember", roundLabel(), game.showIndex .. "/" .. game.round)
+    FactView.drawStudyCard(game:shownPosition())
+    Layout.drawFooter(SHOWING_HINTS, false)
 end
 
 local function drawWaiting()
@@ -73,101 +80,82 @@ local function drawWaiting()
     gfx.drawTextAligned("Now repeat the sequence", 200, Layout.CONTENT_CENTER_Y - 10, kTextAlignment.center)
     gfx.setFont()
 
-    Layout.drawFooter({ { button = "A", label = "Begin" }, { button = "B", label = "Menu" } }, false)
+    Layout.drawFooter(WAITING_HINTS, false)
 end
 
 local function drawInput()
     gfx.clear()
 
-    local progress = simon.playerIndex .. "/" .. simon.currentRound
-    local currentPosition = simon.sequence[simon.playerIndex]
-
-    if simon.selectedInput == "card" then
-        Layout.drawTitleBar("Position " .. currentPosition .. "?", roundLabel(), progress)
-        SimonScene.cardDial:draw()
+    local progress = game.answerIndex .. "/" .. game.round
+    if game.inputKind == INPUT_KINDS.CARD then
+        Layout.drawTitleBar("Position " .. game:askedPosition() .. "?", roundLabel(), progress)
     else
         Layout.drawTitleBar("Which position?", roundLabel(), progress)
-        Assets.drawCard(Deck.mnemonicaStack[currentPosition], QUESTION_CARD_X, CARD_Y, 2)
-        SimonScene.numberDial:draw()
+        Assets.drawCard(Deck.mnemonicaStack[game:askedPosition()], QUESTION_CARD_X, CARD_Y, 2)
     end
 
-    Layout.drawFooter({ { button = "A", label = "Confirm" }, { button = "B", label = "Menu" } }, true)
+    dialForCurrentQuestion():draw()
+    Layout.drawFooter(INPUT_HINTS, true)
 end
 
 local function drawFeedback()
     gfx.clear()
 
-    if simon.isCorrect then
+    if game.lastAnswerCorrect then
         Layout.drawTitleBar("Correct", roundLabel())
-        gfx.setFont(Layout.boldFont)
-        if simon.playerIndex >= simon.currentRound then
-            gfx.drawTextAligned("Round " .. simon.currentRound .. " complete", 200, Layout.CONTENT_CENTER_Y - 10, kTextAlignment.center)
+        local message
+        if game:isRoundComplete() then
+            message = "Round " .. game.round .. " complete"
         else
-            gfx.drawTextAligned(simon.playerIndex - 1 .. " of " .. simon.currentRound .. " so far", 200, Layout.CONTENT_CENTER_Y - 10, kTextAlignment.center)
+            message = game.answerIndex .. " of " .. game.round .. " so far"
         end
+        gfx.setFont(Layout.boldFont)
+        gfx.drawTextAligned(message, 200, Layout.CONTENT_CENTER_Y - 10, kTextAlignment.center)
         gfx.setFont()
-        Layout.drawFooter({ { button = "A", label = "Continue" }, { button = "B", label = "Menu" } }, false)
+        Layout.drawFooter(CORRECT_HINTS, false)
         return
     end
 
     Layout.drawOutlinedTitleBar("Game over", roundLabel())
 
-    local completedRounds = simon.currentRound - 1
     gfx.drawTextAligned("Rounds completed", 105, Layout.CONTENT_TOP + 30, kTextAlignment.center)
-    Layout.drawLargeText(tostring(completedRounds), 105, Layout.CONTENT_CENTER_Y - 10)
-    local bestText = simon.isNewBest and "New best!" or ("Best: " .. simon.maxRound)
+    Layout.drawLargeText(tostring(game:completedRounds()), 105, Layout.CONTENT_CENTER_Y - 10)
+    local bestText = game.isNewBest and "New best!" or ("Best: " .. game.bestRounds)
     gfx.drawTextAligned(bestText, 105, Layout.CONTENT_CENTER_Y + 30, kTextAlignment.center)
 
-    local position = simon.sequence[simon.playerIndex]
-    FactView.drawFact(position, 285)
-
-    Layout.drawFooter({ { button = "A", label = "Play again" }, { button = "B", label = "Menu" } }, false)
-end
-
-local function checkAnswer()
-    local position = simon.sequence[simon.playerIndex]
-
-    if simon.selectedInput == "card" then
-        simon.isCorrect = Deck.uspccOrder[SimonScene.cardDial:getSelection()] == Deck.mnemonicaStack[position]
-    else
-        simon.isCorrect = SimonScene.numberDial:getSelection() == position
-    end
-
-    if simon.isCorrect then
-        Assets.playSound(sounds.correct)
-
-        if simon.playerIndex < simon.currentRound then
-            simon.playerIndex = simon.playerIndex + 1
-            simon.selectedInput = randomInput()
-        end
-    else
-        Assets.playSound(sounds.incorrect)
-
-        -- The record counts rounds finished, not the round that ended the game
-        local completedRounds = simon.currentRound - 1
-        simon.isNewBest = completedRounds > simon.maxRound
-        if simon.isNewBest then
-            simon.maxRound = completedRounds
-            gameState:saveSettings()
-        end
-    end
-
-    simon.phase = "FEEDBACK"
+    FactView.drawFact(game:askedPosition(), 285)
+    Layout.drawFooter(GAME_OVER_HINTS, false)
 end
 
 local function showNextCard()
-    simon.displayTimer = 0
-    simon.sequenceIndex = simon.sequenceIndex + 1
+    displayTimer = 0
+    game:showNext()
+end
 
-    if simon.sequenceIndex > simon.currentRound then
-        simon.phase = "WAITING"
+local function submitAnswer()
+    local selection = SimonScene.dial:getSelection()
+    if game.inputKind == INPUT_KINDS.CARD then
+        game:submit(Deck.uspccOrder[selection])
+    else
+        game:submit(selection)
+    end
+
+    if game.lastAnswerCorrect then
+        Assets.playSound(sounds.correct)
+    else
+        Assets.playSound(sounds.incorrect)
+        if game.isNewBest then
+            gameState.simonMode.maxRound = game.bestRounds
+            gameState:saveSettings()
+        end
     end
 end
 
 local function updateShowing()
-    simon.displayTimer = simon.displayTimer + 1
-    if simon.displayTimer > framesPerCard then
+    displayTimer = displayTimer + 1
+    if displayTimer > FRAMES_PER_CARD then
         showNextCard()
+        return
     end
 
     drawShowing()
@@ -183,24 +171,17 @@ local function updateWaiting()
 
     if pd.buttonJustPressed(pd.kButtonA) then
         Assets.playSound(sounds.buttonPress)
-        simon.phase = "INPUT"
-        simon.playerIndex = 1
-        simon.selectedInput = randomInput()
+        game:beginInput()
     end
 end
 
 local function updateInput()
-    if simon.selectedInput == "card" then
-        SimonScene.cardDial:update(gameState.crankSensitivity)
-    else
-        SimonScene.numberDial:update(gameState.crankSensitivity)
-    end
-
+    dialForCurrentQuestion():update(gameState.crankSensitivity)
     drawInput()
 
     if pd.buttonJustPressed(pd.kButtonA) then
         Assets.playSound(sounds.buttonPress)
-        checkAnswer()
+        submitAnswer()
     end
 end
 
@@ -209,34 +190,30 @@ local function updateFeedback()
 
     if pd.buttonJustPressed(pd.kButtonA) then
         Assets.playSound(sounds.buttonPress)
-
-        if not simon.isCorrect then
+        if game.isOver then
             startGame()
-        elseif simon.playerIndex >= simon.currentRound then
-            startRound()
         else
-            simon.phase = "INPUT"
+            displayTimer = 0
+            game:continue()
         end
     end
 end
 
 -- Each draws its phase and handles the A button
 local phaseUpdates = {
-    SHOWING = updateShowing,
-    WAITING = updateWaiting,
-    INPUT = updateInput,
-    FEEDBACK = updateFeedback
+    [PHASES.SHOWING] = updateShowing,
+    [PHASES.WAITING] = updateWaiting,
+    [PHASES.INPUT] = updateInput,
+    [PHASES.FEEDBACK] = updateFeedback
 }
 
 function SimonScene.enter()
     gameState.currentMode = GameState.MODES.SIMON
-    SimonScene.cardDial = AnswerDial.newCardDial(AnswerDial.FULL_WIDTH)
-    SimonScene.numberDial = AnswerDial.newNumberDial(AnswerDial.RIGHT_SIDE)
     startGame()
 end
 
 function SimonScene.update()
-    phaseUpdates[simon.phase]()
+    phaseUpdates[game.phase]()
 
     if not pd.buttonJustPressed(pd.kButtonA) and pd.buttonJustPressed(pd.kButtonB) then
         Assets.playSound(sounds.buttonPress)
