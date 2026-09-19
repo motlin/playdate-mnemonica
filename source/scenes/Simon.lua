@@ -1,11 +1,10 @@
 -- Simon mode: watch a growing sequence of stack positions, then repeat it from memory.
 
+import "AnswerDial"
 import "App"
 import "Assets"
 import "Deck"
-import "DialInput"
 import "SceneManager"
-import "SharedState"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -89,16 +88,14 @@ local function drawInput()
     if simon.selectedInput == "card" then
         gfx.drawTextAligned("What card is at position " .. currentPosition .. "?", 200, 55, kTextAlignment.center)
 
-        SharedState.dialRenderer:drawFrame()
-        SharedState.dialRenderer:draw(Deck.uspccOrder, SharedState.selectedCard, Assets.getCardImage, Assets.drawCard)
+        SimonScene.cardDial:draw()
 
         gfx.drawTextAligned("Crank to select card | A: Confirm", 200, 210, kTextAlignment.center)
     else
         local cardName = Deck.mnemonicaStack[currentPosition]
         gfx.drawTextAligned("What position is " .. cardName .. "?", 200, 55, kTextAlignment.center)
 
-        SharedState.numberDialRenderer:drawFrame()
-        SharedState.numberDialRenderer:draw(SharedState.selectedNumber)
+        SimonScene.numberDial:draw()
 
         gfx.drawTextAligned("Crank to select position | A: Confirm", 200, 210, kTextAlignment.center)
     end
@@ -147,9 +144,9 @@ local function checkAnswer()
     local position = simon.sequence[simon.playerIndex]
 
     if simon.selectedInput == "card" then
-        simon.isCorrect = Deck.uspccOrder[SharedState.selectedCard] == Deck.mnemonicaStack[position]
+        simon.isCorrect = Deck.uspccOrder[SimonScene.cardDial:getSelection()] == Deck.mnemonicaStack[position]
     else
-        simon.isCorrect = SharedState.selectedNumber == position
+        simon.isCorrect = SimonScene.numberDial:getSelection() == position
     end
 
     if simon.isCorrect then
@@ -201,13 +198,10 @@ local function updateWaiting()
 end
 
 local function updateInput()
-    -- Unlike the quizzes, D-pad moves show on the same frame
     if simon.selectedInput == "card" then
-        SharedState.selectedCard = DialInput.selectionFromCrank(SharedState.selectedCard)
-        SharedState.selectedCard = DialInput.selectionFromDpad(SharedState.selectedCard, 13)
+        SimonScene.cardDial:update(gameState.crankSensitivity)
     else
-        SharedState.selectedNumber = DialInput.selectionFromCrank(SharedState.selectedNumber)
-        SharedState.selectedNumber = DialInput.selectionFromDpad(SharedState.selectedNumber, 10)
+        SimonScene.numberDial:update(gameState.crankSensitivity)
     end
 
     drawInput()
@@ -244,8 +238,8 @@ local phaseUpdates = {
 
 function SimonScene.enter()
     gameState.currentMode = GameState.MODES.SIMON
-    SharedState.selectedCard = 1
-    SharedState.selectedNumber = 1
+    SimonScene.cardDial = AnswerDial.newCardDial()
+    SimonScene.numberDial = AnswerDial.newNumberDial()
     startGame()
 end
 

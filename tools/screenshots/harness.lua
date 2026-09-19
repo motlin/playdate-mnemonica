@@ -21,6 +21,13 @@ do
 
     pd.buttonJustPressed = function(b) return pressed[b] == true end
     pd.getCrankPosition = function() return crank end
+    -- Like the device: travel since the previous call, taking the short way round
+    local reportedCrank = 0
+    pd.getCrankChange = function()
+        local change = (crank - reportedCrank + 180) % 360 - 180
+        reportedCrank = crank
+        return change
+    end
     pd.isCrankDocked = function() return docked end
     gameState.soundEnabled = false
 
@@ -54,10 +61,10 @@ do
     local function answer(correct, shotName)
         local pos = gameState:getCurrentPosition()
         if gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-            SharedState.selectedNumber = correct and pos or (pos % 52) + 1
+            QuizScene.dial:select(correct and pos or (pos % 52) + 1)
         else
             local right = indexOf(Deck.uspccOrder, Deck.mnemonicaStack[pos])
-            SharedState.selectedCard = correct and right or (right % 52) + 1
+            QuizScene.dial:select(correct and right or (right % 52) + 1)
         end
         frames(1)
         press(pd.kButtonA, 3)
@@ -66,7 +73,7 @@ do
     end
 
     local function menuTo(index)
-        MenuScene.selection = index
+        MenuScene.select(index)
         frames(2)
     end
 

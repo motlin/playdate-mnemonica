@@ -4,9 +4,8 @@ import "CoreLibs/ui"
 import "App"
 import "Assets"
 import "Deck"
-import "DialInput"
+import "Picker"
 import "SceneManager"
-import "SharedState"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -15,9 +14,11 @@ local sounds <const> = Assets.sounds
 
 StudyScene = {}
 
-local position = 1
+local picker
 
 local function draw()
+    local position = picker:getSelection()
+
     gfx.clear()
 
     gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
@@ -38,30 +39,16 @@ end
 
 function StudyScene.enter()
     gameState.currentMode = GameState.MODES.STUDY
-    position = 1
-    SharedState.lastCrankPosition = pd.getCrankPosition()
+    -- Left/Right step through the stack, Up/Down jump ten positions
+    picker = Picker:new(52, { up = -10, down = 10, left = -1, right = 1 }, function()
+        Assets.playSound(sounds.crankTick)
+    end)
 end
 
 function StudyScene.update()
-    position = DialInput.selectionFromCrank(position)
+    picker:update(gameState.crankSensitivity)
 
     draw()
-
-    -- Up/Down jump ten positions, Left/Right step by one
-    local step
-    if pd.buttonJustPressed(pd.kButtonUp) then
-        step = -10
-    elseif pd.buttonJustPressed(pd.kButtonDown) then
-        step = 10
-    elseif pd.buttonJustPressed(pd.kButtonLeft) then
-        step = -1
-    elseif pd.buttonJustPressed(pd.kButtonRight) then
-        step = 1
-    end
-    if step then
-        Assets.playSound(sounds.buttonPress)
-        position = DialInput.wrap(position + step)
-    end
 
     if pd.buttonJustPressed(pd.kButtonB) then
         Assets.playSound(sounds.buttonPress)

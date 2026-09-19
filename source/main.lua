@@ -3,7 +3,6 @@ import "CoreLibs/ui"
 
 import "App"
 import "SceneManager"
-import "SharedState"
 import "SystemMenu"
 import "scenes/Menu"
 import "scenes/Quiz"
@@ -41,6 +40,5 @@ pd.display.setRefreshRate(30)
 gameState:loadHighScores()
 gameState:loadSettings()
 MenuScene.selection = gameState.lastSelectedMenuMode
-SharedState.lastCrankPosition = pd.getCrankPosition()
 SceneManager.switch(MenuScene)
 SystemMenu.refresh()

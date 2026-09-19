@@ -3,8 +3,8 @@ include_files = { "source/**/*.lua", "spec/**/*.lua" }
 globals = {
     "playdate",
     "GameState", "QuizSession", "MistakeReviewMode",
-    "DialRenderer", "NumberDialRenderer", "UIHelpers", "CrankSelector",
-    "App", "Assets", "Deck", "DialInput", "SceneManager", "SharedState", "SystemMenu",
+    "DialRenderer", "NumberDialRenderer", "UIHelpers", "CrankSelector", "Picker", "AnswerDial",
+    "App", "Assets", "Deck", "SceneManager", "SystemMenu",
     "MenuScene", "QuizScene", "FeedbackScene", "SummaryScene", "MistakeListScene", "MistakeStudyScene",
     "MistakeReviewCompleteScene", "StudyScene", "SimonScene", "HighScoresScene", "SettingsScene", "CreditsScene",
 }

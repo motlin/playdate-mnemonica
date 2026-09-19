@@ -4,7 +4,6 @@
 import "App"
 import "Assets"
 import "SceneManager"
-import "SharedState"
 
 local pd <const> = playdate
 local gameState <const> = App.gameState
@@ -25,7 +24,6 @@ local function restartQuiz()
     else
         -- Outside a quiz the new session is never shown, but starting it still unpauses the game
         gameState:startQuiz(mode)
-        SharedState.lastCrankPosition = pd.getCrankPosition()
     end
 end
 

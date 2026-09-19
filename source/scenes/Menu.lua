@@ -2,7 +2,7 @@ import "CoreLibs/ui"
 import "App"
 import "Assets"
 import "SceneManager"
-import "SharedState"
+import "Picker"
 import "UIHelpers"
 
 local pd <const> = playdate
@@ -23,43 +23,14 @@ local menuItems = {
     "Settings"
 }
 
--- Degrees the crank must favour a new item over the current one, to prevent flickering
-local hysteresisThreshold = 15
+local picker
 
-local function updateSelectionWithCrank()
-    local crankPosition = pd.getCrankPosition()  -- 0-359 degrees
-
-    if math.abs(crankPosition - SharedState.lastCrankPosition) < 0.5 then
-        return
-    end
-
-    local degreesPerItem = 360 / #menuItems
-    local effectiveDegreesPerItem = degreesPerItem / gameState.crankSensitivity
-
-    -- Add 0.5 to center each item in its range
-    local targetSelection = math.floor((crankPosition / effectiveDegreesPerItem) + 0.5) + 1
-
-    if targetSelection > #menuItems then targetSelection = targetSelection - #menuItems end
-    if targetSelection < 1 then targetSelection = targetSelection + #menuItems end
-
-    if targetSelection ~= MenuScene.selection then
-        local currentCenter = ((MenuScene.selection - 1) * effectiveDegreesPerItem) % 360
-        local targetCenter = ((targetSelection - 1) * effectiveDegreesPerItem) % 360
-
-        local distanceToTarget = math.abs(crankPosition - targetCenter)
-        if distanceToTarget > 180 then distanceToTarget = 360 - distanceToTarget end
-
-        local distanceToCurrent = math.abs(crankPosition - currentCenter)
-        if distanceToCurrent > 180 then distanceToCurrent = 360 - distanceToCurrent end
-
-        -- Only switch when significantly closer to the new item, so each item is "sticky"
-        if distanceToTarget < distanceToCurrent - hysteresisThreshold then
-            MenuScene.selection = targetSelection
-            Assets.playSound(sounds.menuMove)
-        end
-    end
-
-    SharedState.lastCrankPosition = crankPosition
+-- The menu opens on whatever was selected last, including across launches.
+local function newPicker()
+    picker = Picker:new(#menuItems, { up = -1, down = 1, left = 0, right = 0 }, function()
+        Assets.playSound(sounds.menuMove)
+    end)
+    picker:select(MenuScene.selection)
 end
 
 local function draw()
@@ -102,24 +73,23 @@ local function startSelectedMode()
     end
 end
 
+function MenuScene.select(index)
+    MenuScene.selection = index
+    picker:select(index)
+end
+
 function MenuScene.enter()
     gameState.currentMode = GameState.MODES.MENU
+    newPicker()
 end
 
 function MenuScene.update()
-    updateSelectionWithCrank()
+    picker:update(gameState.crankSensitivity)
+    MenuScene.selection = picker:getSelection()
 
     draw()
 
-    if pd.buttonJustPressed(pd.kButtonUp) then
-        Assets.playSound(sounds.menuMove)
-        MenuScene.selection = MenuScene.selection - 1
-        if MenuScene.selection < 1 then MenuScene.selection = #menuItems end
-    elseif pd.buttonJustPressed(pd.kButtonDown) then
-        Assets.playSound(sounds.menuMove)
-        MenuScene.selection = MenuScene.selection + 1
-        if MenuScene.selection > #menuItems then MenuScene.selection = 1 end
-    elseif pd.buttonJustPressed(pd.kButtonA) then
+    if pd.buttonJustPressed(pd.kButtonA) then
         Assets.playSound(sounds.buttonPress)
         startSelectedMode()
     end

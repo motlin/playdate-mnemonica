@@ -3,10 +3,9 @@
 import "CoreLibs/ui"
 import "App"
 import "Assets"
+import "AnswerDial"
 import "Deck"
-import "DialInput"
 import "SceneManager"
-import "SharedState"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -19,19 +18,14 @@ local function isNumberToCard()
     return gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD
 end
 
--- Only the dial the quiz uses goes back to the start; the other keeps its selection.
+-- A fresh dial starts on the first item with no leftover rotation.
 function QuizScene.resetSelection()
-    if isNumberToCard() then
-        SharedState.selectedCard = 1
-    else
-        SharedState.selectedNumber = 1
-    end
+    QuizScene.dial = isNumberToCard() and AnswerDial.newCardDial() or AnswerDial.newNumberDial()
 end
 
 function QuizScene.start(mode)
     gameState:startQuiz(mode)
     QuizScene.resetSelection()
-    SharedState.lastCrankPosition = pd.getCrankPosition()
     SceneManager.switch(QuizScene)
 end
 
@@ -67,8 +61,7 @@ local function drawNumberToCard()
 
     gfx.drawTextAligned(gameState:getFormattedTime(), 380, 10, kTextAlignment.right)
 
-    SharedState.dialRenderer:drawFrame()
-    SharedState.dialRenderer:draw(Deck.uspccOrder, SharedState.selectedCard, Assets.getCardImage, Assets.drawCard)
+    QuizScene.dial:draw()
 
     drawStatus()
 end
@@ -85,17 +78,16 @@ local function drawCardToNumber()
 
     gfx.drawTextAligned(gameState:getFormattedTime(), 380, 10, kTextAlignment.right)
 
-    SharedState.numberDialRenderer:drawFrame()
-    SharedState.numberDialRenderer:draw(SharedState.selectedNumber)
+    QuizScene.dial:draw()
 
     drawStatus()
 end
 
 local function checkAnswer()
     if isNumberToCard() then
-        gameState:submitAnswer(Deck.uspccOrder[SharedState.selectedCard], false)
+        gameState:submitAnswer(Deck.uspccOrder[QuizScene.dial:getSelection()], false)
     else
-        gameState:submitAnswer(tostring(SharedState.selectedNumber), false)
+        gameState:submitAnswer(tostring(QuizScene.dial:getSelection()), false)
     end
 
     if gameState.userWasCorrect then
@@ -108,15 +100,12 @@ local function checkAnswer()
 end
 
 function QuizScene.update()
-    -- D-pad moves show on the next frame; crank moves show on this one
+    QuizScene.dial:update(gameState.crankSensitivity)
+
     if isNumberToCard() then
-        SharedState.selectedCard = DialInput.selectionFromCrank(SharedState.selectedCard)
         drawNumberToCard()
-        SharedState.selectedCard = DialInput.selectionFromDpad(SharedState.selectedCard, 13)
     else
-        SharedState.selectedNumber = DialInput.selectionFromCrank(SharedState.selectedNumber)
         drawCardToNumber()
-        SharedState.selectedNumber = DialInput.selectionFromDpad(SharedState.selectedNumber, 10)
     end
 
     if pd.buttonJustPressed(pd.kButtonA) then

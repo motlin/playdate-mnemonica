@@ -4,7 +4,6 @@ import "App"
 import "Assets"
 import "Deck"
 import "SceneManager"
-import "SharedState"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -71,7 +70,6 @@ function MistakeListScene.update()
     elseif pd.buttonJustPressed(pd.kButtonA) then
         Assets.playSound(sounds.buttonPress)
         gameState:startMistakeReview()
-        SharedState.lastCrankPosition = pd.getCrankPosition()
         SceneManager.switch(MistakeStudyScene)
     elseif pd.buttonJustPressed(pd.kButtonB) then
         Assets.playSound(sounds.buttonPress)
