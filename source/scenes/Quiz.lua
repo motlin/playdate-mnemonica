@@ -1,10 +1,10 @@
 -- The question screen of both quizzes, including the re-quiz of a mistake review.
 
-import "CoreLibs/ui"
 import "App"
 import "Assets"
 import "AnswerDial"
 import "Deck"
+import "Layout"
 import "SceneManager"
 
 local pd <const> = playdate
@@ -20,7 +20,11 @@ end
 
 -- A fresh dial starts on the first item with no leftover rotation.
 function QuizScene.resetSelection()
-    QuizScene.dial = isNumberToCard() and AnswerDial.newCardDial() or AnswerDial.newNumberDial()
+    if isNumberToCard() then
+        QuizScene.dial = AnswerDial.newCardDial(AnswerDial.FULL_WIDTH)
+    else
+        QuizScene.dial = AnswerDial.newNumberDial(AnswerDial.RIGHT_SIDE)
+    end
 end
 
 function QuizScene.start(mode)
@@ -37,50 +41,24 @@ function QuizScene.enter()
     end
 end
 
-local function drawStatus()
-    if pd.isCrankDocked() then
-        pd.ui.crankIndicator:draw()
-    end
+local QUESTION_CARD_X <const> = 70
+local FOOTER_HINTS <const> = { { button = "A", label = "Confirm" }, { button = "B", label = "Menu" } }
 
-    gfx.drawTextAligned(gameState:getProgressString(), 200, 200, kTextAlignment.center)
-
-    if gameState.usingSpacedRepetition then
-        gfx.drawTextAligned("[Smart Mode]" , 200, 185, kTextAlignment.center)
-    end
-
-    gfx.drawTextAligned("Crank/D-pad: Select | A: Confirm | B: Menu", 200, 220, kTextAlignment.center)
-end
-
-local function drawNumberToCard()
+local function draw()
     gfx.clear()
 
-    local questionText = "Position " .. gameState:getCurrentPosition() .. "?"
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(questionText, 200, 10, kTextAlignment.center)
-    gfx.setFont()
+    local session = gameState.currentSession
+    local progress = session.currentQuestionIndex .. "/" .. session.totalQuestions
 
-    gfx.drawTextAligned(gameState:getFormattedTime(), 380, 10, kTextAlignment.right)
-
-    QuizScene.dial:draw()
-
-    drawStatus()
-end
-
-local function drawCardToNumber()
-    gfx.clear()
-
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("What position is this card?", 200, 10, kTextAlignment.center)
-    gfx.setFont()
-
-    -- The question card sits to the left of the dial
-    Assets.drawCard(Deck.mnemonicaStack[gameState:getCurrentPosition()], 80, 100, 1)
-
-    gfx.drawTextAligned(gameState:getFormattedTime(), 380, 10, kTextAlignment.right)
+    if isNumberToCard() then
+        Layout.drawTitleBar("Position " .. gameState:getCurrentPosition() .. "?", progress, gameState:getFormattedTime())
+    else
+        Layout.drawTitleBar("Which position?", progress, gameState:getFormattedTime())
+        Assets.drawCard(Deck.mnemonicaStack[gameState:getCurrentPosition()], QUESTION_CARD_X, Layout.CONTENT_CENTER_Y - 7, 2)
+    end
 
     QuizScene.dial:draw()
-
-    drawStatus()
+    Layout.drawFooter(FOOTER_HINTS, true)
 end
 
 local function checkAnswer()
@@ -102,11 +80,7 @@ end
 function QuizScene.update()
     QuizScene.dial:update(gameState.crankSensitivity)
 
-    if isNumberToCard() then
-        drawNumberToCard()
-    else
-        drawCardToNumber()
-    end
+    draw()
 
     if pd.buttonJustPressed(pd.kButtonA) then
         Assets.playSound(sounds.buttonPress)

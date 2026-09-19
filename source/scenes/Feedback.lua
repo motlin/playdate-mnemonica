@@ -3,6 +3,7 @@
 import "App"
 import "Assets"
 import "Deck"
+import "Layout"
 import "SceneManager"
 
 local pd <const> = playdate
@@ -12,47 +13,35 @@ local sounds <const> = Assets.sounds
 
 FeedbackScene = {}
 
-local function drawHeading(text, y)
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(text, 200, y, kTextAlignment.center)
-    gfx.setFont()
-end
+local LEFT_X <const> = 105
+local RIGHT_X <const> = 285
+local FOOTER_HINTS <const> = { { button = "A", label = "Continue" } }
 
 local function draw()
     gfx.clear()
 
-    gfx.drawTextAligned(gameState:getFormattedTime(), 380, 10, kTextAlignment.right)
+    local score = gameState:getScore() .. "/" .. gameState:getQuestionsAnswered()
+    local position = gameState:getCurrentPosition()
+    local card = Deck.mnemonicaStack[position]
 
-    if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-        if gameState.userWasCorrect then
-            drawHeading("Correct!", 20)
-            Assets.drawCard(gameState.correctAnswer, 200, 90, 1)
-        else
-            drawHeading("Wrong!", 10)
-
-            gfx.drawTextAligned("You picked:", 100, 40, kTextAlignment.center)
-            Assets.drawCard(gameState.userAnswer, 100, 100, 1)
-
-            gfx.drawTextAligned("Correct:", 300, 40, kTextAlignment.center)
-            Assets.drawCard(gameState.correctAnswer, 300, 100, 1)
-        end
+    if gameState.userWasCorrect then
+        Layout.drawTitleBar("Correct", score, gameState:getFormattedTime())
+        Layout.drawPositionWithCard(position, card, Layout.SCREEN_WIDTH / 2, Assets.drawCard)
     else
-        Assets.drawCard(Deck.mnemonicaStack[gameState:getCurrentPosition()], 200, 50, 1)
+        Layout.drawOutlinedTitleBar("Wrong", score, gameState:getFormattedTime())
 
-        if gameState.userWasCorrect then
-            drawHeading("Correct!", 100)
-            gfx.drawTextAligned("Position " .. gameState.correctAnswer, 200, 120, kTextAlignment.center)
+        if gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD then
+            gfx.drawTextAligned("You picked", LEFT_X, Layout.CONTENT_TOP + 30, kTextAlignment.center)
+            Assets.drawCard(gameState.userAnswer, LEFT_X, Layout.CONTENT_CENTER_Y + 8, 1)
         else
-            drawHeading("Wrong!", 100)
-            gfx.drawTextAligned("You said: " .. gameState.userAnswer, 200, 120, kTextAlignment.center)
-            gfx.drawTextAligned("Correct: Position " .. gameState.correctAnswer, 200, 140, kTextAlignment.center)
+            gfx.drawTextAligned("You said", LEFT_X, Layout.CONTENT_TOP + 50, kTextAlignment.center)
+            Layout.drawLargeNumber(tonumber(gameState.userAnswer), LEFT_X, Layout.CONTENT_CENTER_Y + 8)
         end
+
+        Layout.drawPositionWithCard(position, card, RIGHT_X, Assets.drawCard)
     end
 
-    local scoreText = "Score: " .. gameState:getScore() .. "/" .. gameState:getQuestionsAnswered()
-    gfx.drawTextAligned(scoreText, 200, 160, kTextAlignment.center)
-
-    gfx.drawTextAligned("(A) Continue", 200, 200, kTextAlignment.center)
+    Layout.drawFooter(FOOTER_HINTS, false)
 end
 
 local function nextQuestion()

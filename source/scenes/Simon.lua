@@ -4,6 +4,7 @@ import "AnswerDial"
 import "App"
 import "Assets"
 import "Deck"
+import "Layout"
 import "SceneManager"
 
 local pd <const> = playdate
@@ -39,105 +40,89 @@ local function startGame()
     startRound()
 end
 
-local function drawTitle(title)
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned(title, 200, 10, kTextAlignment.center)
-    gfx.setFont()
+local QUESTION_CARD_X <const> = 70
+local CARD_Y <const> = Layout.CONTENT_CENTER_Y - 7
+
+local function roundLabel()
+    return "Round " .. simon.currentRound
 end
 
 local function drawShowing()
     gfx.clear()
-    drawTitle("Simon Mode - Round " .. simon.currentRound)
 
     -- The frame on which the last card times out is drawn after the sequence has run out
     if simon.sequenceIndex > #simon.sequence then
-        gfx.drawTextAligned("Preparing next phase...", 200, 120, kTextAlignment.center)
+        Layout.drawTitleBar("Simon", roundLabel())
         return
     end
 
     local position = simon.sequence[simon.sequenceIndex]
-    local card = Deck.mnemonicaStack[position]
+    Layout.drawTitleBar("Remember", roundLabel(), simon.sequenceIndex .. "/" .. simon.currentRound)
 
-    gfx.setFont(gfx.getSystemFont(gfx.font.kFontFamilyHeading))
-    gfx.drawTextAligned("Position " .. position, 200, 50, kTextAlignment.center)
-    gfx.setFont()
+    Assets.drawCard(Deck.mnemonicaStack[position], 130, CARD_Y, 2)
+    gfx.drawTextAligned("Position", 280, CARD_Y - 40, kTextAlignment.center)
+    Layout.drawLargeNumber(position, 280, CARD_Y + 5)
 
-    Assets.drawCard(card, 200, 110, 1)
-    gfx.drawTextAligned(card, 200, 160, kTextAlignment.center)
-
-    gfx.drawTextAligned("Card " .. simon.sequenceIndex .. " of " .. simon.currentRound, 200, 200, kTextAlignment.center)
-    gfx.drawTextAligned("Press A to skip, B to exit", 200, 220, kTextAlignment.center)
+    Layout.drawFooter({ { button = "A", label = "Next" }, { button = "B", label = "Menu" } }, false)
 end
 
 local function drawWaiting()
     gfx.clear()
-    drawTitle("Simon Mode - Round " .. simon.currentRound)
+    Layout.drawTitleBar("Simon", roundLabel())
 
-    gfx.drawTextAligned("Get ready to repeat the sequence!", 200, 100, kTextAlignment.center)
-    gfx.drawTextAligned("Press A to begin", 200, 130, kTextAlignment.center)
+    gfx.setFont(Layout.boldFont)
+    gfx.drawTextAligned("Now repeat the sequence", 200, Layout.CONTENT_CENTER_Y - 10, kTextAlignment.center)
+    gfx.setFont()
+
+    Layout.drawFooter({ { button = "A", label = "Begin" }, { button = "B", label = "Menu" } }, false)
 end
 
 local function drawInput()
     gfx.clear()
-    drawTitle("Simon Mode - Round " .. simon.currentRound)
 
-    gfx.drawTextAligned("Enter card " .. simon.playerIndex .. " of " .. simon.currentRound, 200, 35, kTextAlignment.center)
-
+    local progress = simon.playerIndex .. "/" .. simon.currentRound
     local currentPosition = simon.sequence[simon.playerIndex]
 
     if simon.selectedInput == "card" then
-        gfx.drawTextAligned("What card is at position " .. currentPosition .. "?", 200, 55, kTextAlignment.center)
-
+        Layout.drawTitleBar("Position " .. currentPosition .. "?", roundLabel(), progress)
         SimonScene.cardDial:draw()
-
-        gfx.drawTextAligned("Crank to select card | A: Confirm", 200, 210, kTextAlignment.center)
     else
-        local cardName = Deck.mnemonicaStack[currentPosition]
-        gfx.drawTextAligned("What position is " .. cardName .. "?", 200, 55, kTextAlignment.center)
-
+        Layout.drawTitleBar("Which position?", roundLabel(), progress)
+        Assets.drawCard(Deck.mnemonicaStack[currentPosition], QUESTION_CARD_X, CARD_Y, 2)
         SimonScene.numberDial:draw()
-
-        gfx.drawTextAligned("Crank to select position | A: Confirm", 200, 210, kTextAlignment.center)
     end
-    gfx.drawTextAligned("B: Cancel", 200, 225, kTextAlignment.center)
+
+    Layout.drawFooter({ { button = "A", label = "Confirm" }, { button = "B", label = "Menu" } }, true)
 end
 
 local function drawFeedback()
     gfx.clear()
-    drawTitle("Simon Mode")
 
     if simon.isCorrect then
-        gfx.drawTextAligned("Correct!", 200, 60, kTextAlignment.center)
-
+        Layout.drawTitleBar("Correct", roundLabel())
+        gfx.setFont(Layout.boldFont)
         if simon.playerIndex >= simon.currentRound then
-            gfx.drawTextAligned("Round " .. simon.currentRound .. " Complete!", 200, 90, kTextAlignment.center)
-            gfx.drawTextAligned("Press A to continue to Round " .. (simon.currentRound + 1), 200, 120, kTextAlignment.center)
+            gfx.drawTextAligned("Round " .. simon.currentRound .. " complete", 200, Layout.CONTENT_CENTER_Y - 10, kTextAlignment.center)
         else
-            gfx.drawTextAligned("Press A to continue", 200, 90, kTextAlignment.center)
+            gfx.drawTextAligned(simon.playerIndex - 1 .. " of " .. simon.currentRound .. " so far", 200, Layout.CONTENT_CENTER_Y - 10, kTextAlignment.center)
         end
-    else
-        gfx.drawTextAligned("Incorrect!", 200, 60, kTextAlignment.center)
-        gfx.drawTextAligned("Game Over", 200, 90, kTextAlignment.center)
-
-        local position = simon.sequence[simon.playerIndex]
-        local card = Deck.mnemonicaStack[position]
-        gfx.drawTextAligned("Position " .. position .. " is " .. card, 200, 120, kTextAlignment.center)
-
-        local completedRounds = simon.currentRound - 1
-        local partialCards = simon.playerIndex - 1
-        gfx.drawTextAligned("Completed: " .. completedRounds .. " rounds + " .. partialCards .. " cards", 200, 150, kTextAlignment.center)
-
-        -- The record is saved here, so "New best" shows for a single frame
-        if simon.currentRound > simon.maxRound then
-            simon.maxRound = simon.currentRound
-            gameState:saveSettings()
-            gfx.drawTextAligned("New best: Round " .. simon.maxRound .. "!", 200, 170, kTextAlignment.center)
-        else
-            gfx.drawTextAligned("Best: Round " .. simon.maxRound, 200, 170, kTextAlignment.center)
-        end
-
-        gfx.drawTextAligned("Press A to play again | B: Main Menu", 200, 200, kTextAlignment.center)
+        gfx.setFont()
+        Layout.drawFooter({ { button = "A", label = "Continue" }, { button = "B", label = "Menu" } }, false)
+        return
     end
+
+    Layout.drawOutlinedTitleBar("Game over", roundLabel())
+
+    local completedRounds = simon.currentRound - 1
+    gfx.drawTextAligned("Rounds completed", 105, Layout.CONTENT_TOP + 30, kTextAlignment.center)
+    Layout.drawLargeNumber(completedRounds, 105, Layout.CONTENT_CENTER_Y - 10)
+    local bestText = simon.isNewBest and "New best!" or ("Best: " .. simon.maxRound)
+    gfx.drawTextAligned(bestText, 105, Layout.CONTENT_CENTER_Y + 30, kTextAlignment.center)
+
+    local position = simon.sequence[simon.playerIndex]
+    Layout.drawPositionWithCard(position, Deck.mnemonicaStack[position], 285, Assets.drawCard)
+
+    Layout.drawFooter({ { button = "A", label = "Play again" }, { button = "B", label = "Menu" } }, false)
 end
 
 local function checkAnswer()
@@ -158,6 +143,14 @@ local function checkAnswer()
         end
     else
         Assets.playSound(sounds.incorrect)
+
+        -- The record counts rounds finished, not the round that ended the game
+        local completedRounds = simon.currentRound - 1
+        simon.isNewBest = completedRounds > simon.maxRound
+        if simon.isNewBest then
+            simon.maxRound = completedRounds
+            gameState:saveSettings()
+        end
     end
 
     simon.phase = "FEEDBACK"
@@ -238,8 +231,8 @@ local phaseUpdates = {
 
 function SimonScene.enter()
     gameState.currentMode = GameState.MODES.SIMON
-    SimonScene.cardDial = AnswerDial.newCardDial()
-    SimonScene.numberDial = AnswerDial.newNumberDial()
+    SimonScene.cardDial = AnswerDial.newCardDial(AnswerDial.FULL_WIDTH)
+    SimonScene.numberDial = AnswerDial.newNumberDial(AnswerDial.RIGHT_SIDE)
     startGame()
 end
 
