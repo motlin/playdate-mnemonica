@@ -4,6 +4,9 @@ globals = {
     "playdate",
     "GameState", "QuizSession", "MistakeReviewMode",
     "DialRenderer", "NumberDialRenderer", "UIHelpers", "CrankSelector",
+    "App", "Assets", "Deck", "DialInput", "SceneManager", "SharedState", "SystemMenu",
+    "MenuScene", "QuizScene", "FeedbackScene", "SummaryScene", "MistakeListScene", "MistakeStudyScene",
+    "MistakeReviewCompleteScene", "StudyScene", "SimonScene", "HighScoresScene", "SettingsScene", "CreditsScene",
 }
 read_globals = { "import", "kTextAlignment" }
 max_line_length = false

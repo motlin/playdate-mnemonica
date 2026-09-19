@@ -1,6 +1,9 @@
 
 -- ===== SCREENSHOT HARNESS (appended to a build copy of main.lua; never shipped) =====
 do
+    local pd <const> = playdate
+    local gfx <const> = playdate.graphics
+    local gameState <const> = App.gameState
     local OUT <const> = HARNESS_OUT
     local SCENARIO <const> = HARNESS_SCENARIO
     local realUpdate = playdate.update
@@ -51,10 +54,10 @@ do
     local function answer(correct, shotName)
         local pos = gameState:getCurrentPosition()
         if gameState:getQuizMode() == GameState.MODES.QUIZ_CARD_TO_NUMBER then
-            selectedNumber = correct and pos or (pos % 52) + 1
+            SharedState.selectedNumber = correct and pos or (pos % 52) + 1
         else
-            local right = indexOf(uspccOrder, mnemonicaStack[pos])
-            selectedCard = correct and right or (right % 52) + 1
+            local right = indexOf(Deck.uspccOrder, Deck.mnemonicaStack[pos])
+            SharedState.selectedCard = correct and right or (right % 52) + 1
         end
         frames(1)
         press(pd.kButtonA, 3)
@@ -63,7 +66,7 @@ do
     end
 
     local function menuTo(index)
-        menuSelection = index
+        MenuScene.selection = index
         frames(2)
     end
 
@@ -113,8 +116,8 @@ do
         menuTo(5); press(pd.kButtonA, 5); shot("highscores"); press(pd.kButtonB, 3)
 
         menuTo(6); press(pd.kButtonA, 5)
-        for i = 1, 6 do settingsSelection = i; frames(2); shot("settings-sel" .. i) end
-        settingsSelection = 5; frames(1); press(pd.kButtonA, 5); shot("credits")
+        for i = 1, 6 do SettingsScene.selection = i; frames(2); shot("settings-sel" .. i) end
+        SettingsScene.selection = 5; frames(1); press(pd.kButtonA, 5); shot("credits")
         press(pd.kButtonB, 3); press(pd.kButtonB, 3)
         shot("menu-final")
     end
@@ -135,10 +138,10 @@ do
         frames(10)
         completeQuiz(1, 5, "n2c-5wrong")
         -- walk the options: find mistakes list and review
-        completionScreenState.selectedOption = 2; frames(2); press(pd.kButtonA, 4); shot("opt2-result")
+        SummaryScene.selectedOption = 2; frames(2); press(pd.kButtonA, 4); shot("opt2-result")
         press(pd.kButtonDown, 2); press(pd.kButtonDown, 2); shot("opt2-after-down")
         press(pd.kButtonB, 4); shot("opt2-after-b")
-        completionScreenState.selectedOption = 3; frames(2); press(pd.kButtonA, 4); shot("opt3-result")
+        SummaryScene.selectedOption = 3; frames(2); press(pd.kButtonA, 4); shot("opt3-result")
         for i = 1, 8 do
             press(pd.kButtonA, 4); shot("opt3-after-a" .. i)
         end
@@ -147,19 +150,19 @@ do
     scenarios.complete_many = function()
         frames(10)
         completeQuiz(2, 30, "c2n-30wrong")
-        completionScreenState.selectedOption = 2; frames(2); press(pd.kButtonA, 4); shot("mistakes-list")
+        SummaryScene.selectedOption = 2; frames(2); press(pd.kButtonA, 4); shot("mistakes-list")
         for i = 1, 25 do press(pd.kButtonDown, 1) end
         shot("mistakes-list-scrolled")
         press(pd.kButtonB, 4)
         -- second perfect run to see new-high-score + zero-mistake layout
-        completionScreenState.selectedOption = 1; frames(2); press(pd.kButtonA, 4); shot("after-opt1")
+        SummaryScene.selectedOption = 1; frames(2); press(pd.kButtonA, 4); shot("after-opt1")
     end
 
     -- Summary -> mistakes list -> "Start Review Quiz": study phase, then the re-quiz.
     scenarios.review = function()
         frames(10)
         completeQuiz(1, 3, "n2c-3wrong")
-        completionScreenState.selectedOption = 2; frames(2); press(pd.kButtonA, 4); shot("mistakes-list")
+        SummaryScene.selectedOption = 2; frames(2); press(pd.kButtonA, 4); shot("mistakes-list")
         press(pd.kButtonA, 4); shot("review-study-1")
         expect(gameState.currentMode == GameState.MODES.MISTAKE_REVIEW, "review mode started")
         press(pd.kButtonA, 4); shot("review-study-2")
