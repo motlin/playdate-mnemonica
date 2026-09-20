@@ -37,9 +37,15 @@ screenshots output="builds/screenshots":
     tools/screenshots/run.sh perfect "{{output}}"
     tools/screenshots/run.sh review "{{output}}"
     tools/screenshots/run.sh simon "{{output}}"
+    tools/screenshots/run.sh menu_dpad "{{output}}"
 
 # 💨 Play through the game in the Simulator and fail on any crash
 smoke: screenshots
+
+# 🔬 Build the game with an on-screen input readout, for input bugs that only happen on a device
+input-debug:
+    tools/input-debug/build.sh
+    open -a "Playdate Simulator" "{{output_dir}}/MnemonicaInputDebug.pdx"
 
 # ✅ Pre-commit checks
 precommit: lint test build

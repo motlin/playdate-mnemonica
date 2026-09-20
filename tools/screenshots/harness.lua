@@ -201,6 +201,44 @@ if playdate.isSimulator then
         expect(gameState.currentSession.totalQuestions == 52, "original session restored")
     end
 
+    -- D-pad on the main menu: every press moves exactly one row, in both directions, however
+    -- quickly the presses come and whatever the crank is doing.
+    scenarios.menu_dpad = function()
+        frames(10)
+        local function expectSelection(expected, action)
+            expect(MenuScene.selection == expected,
+                action .. " should select row " .. expected .. ", got " .. tostring(MenuScene.selection))
+        end
+
+        MenuScene.select(1)
+        for row = 2, 6 do press(pd.kButtonDown, 1); expectSelection(row, "Down") end
+        press(pd.kButtonDown, 1); expectSelection(1, "Down past the end")
+
+        for _, row in ipairs({ 6, 5, 4, 3, 2, 1 }) do press(pd.kButtonUp, 1); expectSelection(row, "Up") end
+
+        -- Presses on consecutive frames
+        MenuScene.select(4)
+        press(pd.kButtonUp, 0); press(pd.kButtonUp, 0); press(pd.kButtonUp, 0)
+        expectSelection(1, "three fast Ups")
+
+        -- A resting crank that wobbles a degree or two each frame, as a real one does
+        MenuScene.select(4)
+        for _, row in ipairs({ 3, 2, 1, 6 }) do
+            setCrank(crank + 1.5); frames(1); setCrank(crank - 2); frames(1)
+            press(pd.kButtonUp, 1)
+            expectSelection(row, "Up with a wobbling crank")
+        end
+
+        -- A crank slowly drifting forward while Up is pressed
+        MenuScene.select(4)
+        for _, row in ipairs({ 3, 2, 1 }) do
+            for _ = 1, 10 do setCrank(crank + 5); frames(1) end
+            press(pd.kButtonUp, 1)
+            expectSelection(row, "Up while the crank drifts forward")
+        end
+        shot("menu-after-dpad")
+    end
+
     -- Plays Simon through three rounds, then loses, checking the rules on the way.
     scenarios.simon = function()
         local PHASES <const> = SimonGame.PHASES
