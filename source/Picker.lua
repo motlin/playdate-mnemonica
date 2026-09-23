@@ -9,9 +9,10 @@ Picker.__index = Picker
 
 -- `dpadSteps` maps up/down/left/right to how many items that direction moves.
 -- `onMove` is called once per frame in which the selection changed.
-function Picker:new(itemCount, dpadSteps, onMove)
+-- `turnsPerCycle` is how many full crank turns it takes to go once through the list.
+function Picker:new(itemCount, dpadSteps, onMove, turnsPerCycle)
     local picker = setmetatable({}, self)
-    picker.selector = CrankSelector:new(itemCount, 360 / itemCount)
+    picker.selector = CrankSelector:new(itemCount, 360 * turnsPerCycle / itemCount)
     picker.dpadSteps = dpadSteps
     picker.onMove = onMove
 

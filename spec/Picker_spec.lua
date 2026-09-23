@@ -20,7 +20,7 @@ describe("Picker", function()
     end)
 
     local function newPicker()
-        return Picker:new(52, QUIZ_STEPS, function() ticks = ticks + 1 end)
+        return Picker:new(52, QUIZ_STEPS, function() ticks = ticks + 1 end, 1)
     end
 
     it("moves with the crank and ticks once per frame that changes the selection", function()
@@ -61,6 +61,18 @@ describe("Picker", function()
 
         picker:update(1.0)
 
+        assert.are.equal(1, picker:getSelection())
+    end)
+
+    it("takes the given number of crank turns to go once through the list", function()
+        local picker = Picker:new(52, QUIZ_STEPS, function() end, 2)
+
+        crankChange = 360
+        picker:update(1.0)
+        assert.are.equal(27, picker:getSelection())
+
+        crankChange = 360
+        picker:update(1.0)
         assert.are.equal(1, picker:getSelection())
     end)
 end)

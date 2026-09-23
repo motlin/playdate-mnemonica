@@ -30,7 +30,7 @@ function StudyScene.enter()
     -- Left/Right step through the stack, Up/Down jump ten positions
     picker = Picker:new(52, { up = -10, down = 10, left = -1, right = 1 }, function()
         Assets.playSound(sounds.crankTick)
-    end)
+    end, 2)
 end
 
 function StudyScene.update()

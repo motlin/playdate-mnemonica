@@ -28,7 +28,7 @@ local picker
 local function newPicker()
     picker = Picker:new(#menuItems, { up = -1, down = 1, left = 0, right = 0 }, function()
         Assets.playSound(sounds.menuMove)
-    end)
+    end, 1)
     picker:select(MenuScene.selection)
 end
 

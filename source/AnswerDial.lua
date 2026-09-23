@@ -14,6 +14,8 @@ AnswerDial = {}
 AnswerDial.__index = AnswerDial
 
 local ITEM_COUNT <const> = 52
+-- Two turns of the crank per deck: one turn made each card less than 7 degrees, too twitchy
+local TURNS_PER_DECK <const> = 2
 local RAIL_Y <const> = 206
 
 -- The whole content band, for screens where the dial is the only thing in it.
@@ -27,7 +29,7 @@ end
 
 local function new(dpadSteps, groupSize, area, drawItem)
     local dial = setmetatable({}, AnswerDial)
-    dial.picker = Picker:new(ITEM_COUNT, dpadSteps, playTick)
+    dial.picker = Picker:new(ITEM_COUNT, dpadSteps, playTick, TURNS_PER_DECK)
     dial.carousel = Carousel:new(ITEM_COUNT, groupSize, area, drawItem)
     return dial
 end
