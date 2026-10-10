@@ -7,15 +7,15 @@ SimonGame = {}
 SimonGame.__index = SimonGame
 
 SimonGame.PHASES = {
-    SHOWING = "showing",    -- the sequence is being shown, one card at a time
-    WAITING = "waiting",    -- the sequence has been shown; waiting for the player to begin
-    INPUT = "input",        -- the player is answering a card of the sequence
-    FEEDBACK = "feedback"   -- the answer just given is being shown as right or wrong
+    SHOWING = "showing", -- the sequence is being shown, one card at a time
+    WAITING = "waiting", -- the sequence has been shown; waiting for the player to begin
+    INPUT = "input", -- the player is answering a card of the sequence
+    FEEDBACK = "feedback", -- the answer just given is being shown as right or wrong
 }
 
 SimonGame.INPUT_KINDS = {
-    CARD = "card",          -- given the position, answer with the card
-    POSITION = "position"   -- given the card, answer with the position
+    CARD = "card", -- given the position, answer with the card
+    POSITION = "position", -- given the card, answer with the position
 }
 
 -- options: bestRounds (the record to beat), randomPosition() and randomInputKind()
@@ -42,15 +42,11 @@ function SimonGame:startRound()
 end
 
 -- The position on screen while the sequence is being shown.
-function SimonGame:shownPosition()
-    return self.sequence[self.showIndex]
-end
+function SimonGame:shownPosition() return self.sequence[self.showIndex] end
 
 function SimonGame:showNext()
     self.showIndex = self.showIndex + 1
-    if self.showIndex > self.round then
-        self.phase = SimonGame.PHASES.WAITING
-    end
+    if self.showIndex > self.round then self.phase = SimonGame.PHASES.WAITING end
 end
 
 function SimonGame:askQuestion(answerIndex)
@@ -61,30 +57,20 @@ function SimonGame:askQuestion(answerIndex)
     self.phase = SimonGame.PHASES.INPUT
 end
 
-function SimonGame:beginInput()
-    self:askQuestion(1)
-end
+function SimonGame:beginInput() self:askQuestion(1) end
 
-function SimonGame:askedPosition()
-    return self.sequence[self.answerIndex]
-end
+function SimonGame:askedPosition() return self.sequence[self.answerIndex] end
 
 -- A card name or a position, depending on what the question asks for.
 function SimonGame:correctAnswer()
-    if self.inputKind == SimonGame.INPUT_KINDS.CARD then
-        return Deck.mnemonicaStack[self:askedPosition()]
-    end
+    if self.inputKind == SimonGame.INPUT_KINDS.CARD then return Deck.mnemonicaStack[self:askedPosition()] end
     return self:askedPosition()
 end
 
-function SimonGame:isRoundComplete()
-    return self.lastAnswerCorrect and self.answerIndex == self.round
-end
+function SimonGame:isRoundComplete() return self.lastAnswerCorrect and self.answerIndex == self.round end
 
 -- Rounds answered in full; the round that ended the game does not count.
-function SimonGame:completedRounds()
-    return self:isRoundComplete() and self.round or self.round - 1
-end
+function SimonGame:completedRounds() return self:isRoundComplete() and self.round or self.round - 1 end
 
 function SimonGame:submit(answer)
     self.lastAnswerCorrect = answer == self:correctAnswer()
@@ -93,9 +79,7 @@ function SimonGame:submit(answer)
     if not self.lastAnswerCorrect then
         self.isOver = true
         self.isNewBest = self:completedRounds() > self.bestRounds
-        if self.isNewBest then
-            self.bestRounds = self:completedRounds()
-        end
+        if self.isNewBest then self.bestRounds = self:completedRounds() end
     end
 end
 

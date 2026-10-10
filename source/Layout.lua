@@ -42,9 +42,7 @@ local function drawTitleBarText(title, left, right)
     gfx.setFont(Layout.boldFont)
     gfx.drawTextAligned(title, Layout.SCREEN_WIDTH / 2, TITLE_TEXT_Y, kTextAlignment.center)
     gfx.setFont()
-    if left then
-        gfx.drawText(left, SIDE_MARGIN, TITLE_TEXT_Y)
-    end
+    if left then gfx.drawText(left, SIDE_MARGIN, TITLE_TEXT_Y) end
     if right and right:match("^%d+:%d%d$") then
         drawFixedWidthRightAligned(right, Layout.SCREEN_WIDTH - SIDE_MARGIN, TITLE_TEXT_Y)
     elseif right then
@@ -87,7 +85,12 @@ local function drawHint(hint, x)
 
     gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
     gfx.setFont(Layout.boldFont)
-    gfx.drawTextAligned(hint.button, x + BUTTON_RADIUS, centerY - Layout.boldFont:getHeight() / 2 + 1, kTextAlignment.center)
+    gfx.drawTextAligned(
+        hint.button,
+        x + BUTTON_RADIUS,
+        centerY - Layout.boldFont:getHeight() / 2 + 1,
+        kTextAlignment.center
+    )
     gfx.setFont()
     gfx.setImageDrawMode(gfx.kDrawModeCopy)
 
@@ -133,9 +136,7 @@ local function getDoubleSizeText(text)
 end
 
 -- Short text in double-size bold, centred at x, y. Honours the current image draw mode.
-function Layout.drawLargeText(text, x, y)
-    getDoubleSizeText(text):drawCentered(x, y)
-end
+function Layout.drawLargeText(text, x, y) getDoubleSizeText(text):drawCentered(x, y) end
 
 local LIST_ROW_WIDTH <const> = 210
 local LIST_ROW_PADDING <const> = 3
@@ -147,7 +148,13 @@ function Layout.drawList(items, selection, top, rowHeight)
         if row == selection then
             local barHeight = Layout.boldFont:getHeight() + LIST_ROW_PADDING * 2
             gfx.setColor(gfx.kColorBlack)
-            gfx.fillRoundRect((Layout.SCREEN_WIDTH - LIST_ROW_WIDTH) / 2, y - LIST_ROW_PADDING, LIST_ROW_WIDTH, barHeight, 4)
+            gfx.fillRoundRect(
+                (Layout.SCREEN_WIDTH - LIST_ROW_WIDTH) / 2,
+                y - LIST_ROW_PADDING,
+                LIST_ROW_WIDTH,
+                barHeight,
+                4
+            )
             gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
             gfx.setFont(Layout.boldFont)
             gfx.drawTextAligned(item, Layout.SCREEN_WIDTH / 2, y, kTextAlignment.center)
@@ -159,6 +166,4 @@ function Layout.drawList(items, selection, top, rowHeight)
     end
 end
 
-function Layout.formatTime(seconds)
-    return string.format("%d:%02d", seconds // 60, math.floor(seconds % 60))
-end
+function Layout.formatTime(seconds) return string.format("%d:%02d", seconds // 60, math.floor(seconds % 60)) end

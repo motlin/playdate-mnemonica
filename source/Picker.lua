@@ -22,13 +22,9 @@ function Picker:new(itemCount, dpadSteps, onMove, turnsPerCycle)
     return picker
 end
 
-function Picker:getSelection()
-    return self.selector.index
-end
+function Picker:getSelection() return self.selector.index end
 
-function Picker:select(index)
-    self.selector:select(index)
-end
+function Picker:select(index) self.selector:select(index) end
 
 function Picker:update(sensitivity)
     local before = self.selector.index
@@ -45,7 +41,5 @@ function Picker:update(sensitivity)
         self.selector:step(self.dpadSteps.right)
     end
 
-    if self.selector.index ~= before then
-        self.onMove()
-    end
+    if self.selector.index ~= before then self.onMove() end
 end

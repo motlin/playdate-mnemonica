@@ -23,9 +23,7 @@ local function drawRow(label, value, y)
 end
 
 local function quizRecord(scores)
-    if not scores.bestTime then
-        return "not played yet"
-    end
+    if not scores.bestTime then return "not played yet" end
     return scores.bestScore .. "/52 in " .. Layout.formatTime(scores.bestTime)
 end
 
@@ -42,9 +40,7 @@ local function draw()
     Layout.drawFooter(FOOTER_HINTS, false)
 end
 
-function HighScoresScene.enter()
-    gameState.currentMode = GameState.MODES.HIGH_SCORES
-end
+function HighScoresScene.enter() gameState.currentMode = GameState.MODES.HIGH_SCORES end
 
 function HighScoresScene.update()
     draw()

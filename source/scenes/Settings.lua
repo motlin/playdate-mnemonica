@@ -18,7 +18,7 @@ local ITEM_COUNT <const> = 6
 
 SettingsScene = {
     selection = SOUND,
-    CREDITS = CREDITS
+    CREDITS = CREDITS,
 }
 
 -- The reset row waiting for a second A press, if any. Resets cannot be undone.
@@ -27,18 +27,14 @@ local armedReset
 local FOOTER_HINTS <const> = { { button = "A", label = "Select" }, { button = "B", label = "Menu" } }
 local CONFIRM_HINTS <const> = { { button = "A", label = "Yes, reset" }, { button = "B", label = "Cancel" } }
 
-local function resetLabel(item, label)
-    return armedReset == item and "Really reset?" or label
-end
+local function resetLabel(item, label) return armedReset == item and "Really reset?" or label end
 
 local function draw()
     gfx.clear()
     Layout.drawTitleBar("Settings")
 
     local sensitivity = string.format("%.1f", gameState.crankSensitivity)
-    if SettingsScene.selection == CRANK_SENSITIVITY then
-        sensitivity = "< " .. sensitivity .. " >"
-    end
+    if SettingsScene.selection == CRANK_SENSITIVITY then sensitivity = "< " .. sensitivity .. " >" end
 
     Layout.drawList({
         "Sound  " .. (gameState.soundEnabled and "on" or "off"),
@@ -46,7 +42,7 @@ local function draw()
         resetLabel(RESET_STATISTICS, "Reset statistics"),
         resetLabel(RESET_HIGH_SCORES, "Reset high scores"),
         "Credits",
-        "Back to menu"
+        "Back to menu",
     }, SettingsScene.selection, 33, 30)
 
     Layout.drawFooter(armedReset and CONFIRM_HINTS or FOOTER_HINTS, false)
@@ -63,9 +59,7 @@ local function confirmReset(item, reset)
 end
 
 local function adjustCrankSensitivity(change)
-    if SettingsScene.selection ~= CRANK_SENSITIVITY then
-        return
-    end
+    if SettingsScene.selection ~= CRANK_SENSITIVITY then return end
 
     gameState.crankSensitivity = math.min(3.0, math.max(0.1, gameState.crankSensitivity + change))
     gameState:saveSettings()

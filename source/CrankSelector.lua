@@ -25,9 +25,7 @@ function CrankSelector:turn(degrees, sensitivity)
     self.pendingDegrees = self.pendingDegrees + degrees
 
     local magnitude = math.floor((math.abs(self.pendingDegrees) + EPSILON) / degreesPerStep)
-    if magnitude == 0 then
-        return 0
-    end
+    if magnitude == 0 then return 0 end
 
     local steps = self.pendingDegrees > 0 and magnitude or -magnitude
     self.pendingDegrees = self.pendingDegrees - steps * degreesPerStep
@@ -47,6 +45,4 @@ function CrankSelector:select(index)
     self.index = index
 end
 
-function CrankSelector:moveBy(count)
-    self.index = (self.index - 1 + count) % self.itemCount + 1
-end
+function CrankSelector:moveBy(count) self.index = (self.index - 1 + count) % self.itemCount + 1 end

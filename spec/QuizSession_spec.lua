@@ -6,7 +6,9 @@ describe("QuizSession", function()
 
     it("asks every position exactly once when shuffled", function()
         local positions = {}
-        for position = 1, 52 do positions[position] = position end
+        for position = 1, 52 do
+            positions[position] = position
+        end
 
         local session = QuizSession:new("quiz_number_to_card", 52)
         session:initializeQuestions(positions, true)

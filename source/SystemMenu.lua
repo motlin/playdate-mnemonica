@@ -16,13 +16,9 @@ function SystemMenu.refresh(scene)
     menu:removeAllMenuItems()
 
     if scene.hasQuizInProgress then
-        menu:addMenuItem("Restart quiz", function()
-            QuizScene.start(gameState:getQuizMode())
-        end)
+        menu:addMenuItem("Restart quiz", function() QuizScene.start(gameState:getQuizMode()) end)
 
-        menu:addMenuItem("Main menu", function()
-            SceneManager.switch(MenuScene)
-        end)
+        menu:addMenuItem("Main menu", function() SceneManager.switch(MenuScene) end)
     end
 
     menu:addCheckmarkMenuItem("Sound", gameState.soundEnabled, function(isEnabled)

@@ -28,17 +28,17 @@ Each card/position pair tracks:
 1. **Activation Threshold**: Needs at least 52 questions answered (one full deck) before activating
 
 2. **Weight Calculation**:
-   - Base weight = card's difficulty score
-   - Time bonus: If not seen in >5 minutes, weight increases by up to 50%
-   - Success rate penalty:
-     - <50% success rate: weight × 2
-     - <70% success rate: weight × 1.5
+    - Base weight = card's difficulty score
+    - Time bonus: If not seen in >5 minutes, weight increases by up to 50%
+    - Success rate penalty:
+        - <50% success rate: weight × 2
+        - <70% success rate: weight × 1.5
 
 3. **Question Distribution**:
-   - 70% of questions selected from high-difficulty cards
-   - 30% randomly distributed for variety
-   - Top 10 most difficult cards prioritized
-   - Light final shuffle within first 20 positions
+    - 70% of questions selected from high-difficulty cards
+    - 30% randomly distributed for variety
+    - Top 10 most difficult cards prioritized
+    - Light final shuffle within first 20 positions
 
 ### Visual Indicator
 

@@ -10,7 +10,7 @@ local gameState <const> = App.gameState
 local sounds <const> = Assets.sounds
 
 MenuScene = {
-    selection = 1
+    selection = 1,
 }
 
 local menuItems = {
@@ -19,16 +19,19 @@ local menuItems = {
     "Study Mode",
     "Simon Mode",
     "High Scores",
-    "Settings"
+    "Settings",
 }
 
 local picker
 
 -- The menu opens on whatever was selected last, including across launches.
 local function newPicker()
-    picker = Picker:new(#menuItems, { up = -1, down = 1, left = 0, right = 0 }, function()
-        Assets.playSound(sounds.menuMove)
-    end, 1)
+    picker = Picker:new(
+        #menuItems,
+        { up = -1, down = 1, left = 0, right = 0 },
+        function() Assets.playSound(sounds.menuMove) end,
+        1
+    )
     picker:select(MenuScene.selection)
 end
 

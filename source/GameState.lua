@@ -17,14 +17,14 @@ GameState.MODES = {
     MENU = "menu",
     HIGH_SCORES = "high_scores",
     SETTINGS = "settings",
-    MISTAKE_REVIEW = "mistake_review"  -- New mode for mistake review
+    MISTAKE_REVIEW = "mistake_review", -- New mode for mistake review
 }
 
 -- Quiz states
 GameState.QUIZ_STATES = {
     QUESTION = "question",
     FEEDBACK = "feedback",
-    COMPLETE = "complete"
+    COMPLETE = "complete",
 }
 
 function GameState:new()
@@ -37,19 +37,19 @@ function GameState:new()
     state.quizState = GameState.QUIZ_STATES.QUESTION
 
     -- Current quiz session
-    state.currentSession = nil  -- Will be initialized when quiz starts
-    state.originalSession = nil  -- Preserve original session during mistake review
-    state.usingSpacedRepetition = false  -- Track if current session uses spaced repetition
+    state.currentSession = nil -- Will be initialized when quiz starts
+    state.originalSession = nil -- Preserve original session during mistake review
+    state.usingSpacedRepetition = false -- Track if current session uses spaced repetition
 
     -- Mistake review mode
-    state.mistakeReviewMode = nil  -- Will be initialized when starting mistake review
+    state.mistakeReviewMode = nil -- Will be initialized when starting mistake review
 
     -- Simon mode's record: the most rounds completed in one game
     state.simonMode = { maxRound = 0 }
 
     -- UI state (temporary, not part of session)
-    state.correctAnswer = ""  -- Correct answer for current question
-    state.userAnswer = ""     -- What the user selected
+    state.correctAnswer = "" -- Correct answer for current question
+    state.userAnswer = "" -- What the user selected
     state.userWasCorrect = false
 
     -- High scores
@@ -61,7 +61,7 @@ function GameState:new()
     -- Settings
     state.soundEnabled = true
     state.crankSensitivity = 1.0
-    state.lastSelectedMenuMode = 1  -- Remember last selected menu option (1-3)
+    state.lastSelectedMenuMode = 1 -- Remember last selected menu option (1-3)
 
     -- Card statistics for spaced repetition
     -- Each entry tracks performance for a specific card/position pair
@@ -71,9 +71,9 @@ function GameState:new()
             timesAsked = 0,
             timesCorrect = 0,
             timesIncorrect = 0,
-            lastAsked = 0,  -- Timestamp of last time this was asked
-            streak = 0,     -- Current correct answer streak
-            difficulty = 1.0  -- Difficulty weight for spaced repetition (higher = harder)
+            lastAsked = 0, -- Timestamp of last time this was asked
+            streak = 0, -- Current correct answer streak
+            difficulty = 1.0, -- Difficulty weight for spaced repetition (higher = harder)
         }
     end
 
@@ -101,20 +101,20 @@ function GameState:startQuiz(mode, useSpacedRepetition)
 
     -- Use spaced repetition if enabled and we have enough data
     if useSpacedRepetition == nil then
-        useSpacedRepetition = true  -- Default to using spaced repetition
+        useSpacedRepetition = true -- Default to using spaced repetition
     end
 
     if useSpacedRepetition and self:hasEnoughDataForSpacedRepetition() then
         -- Get spaced repetition order
         positions = self:buildSpacedRepetitionOrder()
-        self.currentSession:initializeQuestions(positions, false)  -- false = don't shuffle again
+        self.currentSession:initializeQuestions(positions, false) -- false = don't shuffle again
         self.usingSpacedRepetition = true
     else
         -- Use simple random shuffling
         for i = 1, 52 do
             positions[i] = i
         end
-        self.currentSession:initializeQuestions(positions, true)  -- true = shuffle
+        self.currentSession:initializeQuestions(positions, true) -- true = shuffle
         self.usingSpacedRepetition = false
     end
 
@@ -149,9 +149,7 @@ function GameState:buildSpacedRepetitionOrder()
         if stats.lastAsked > 0 then
             local timeSinceLastAsked = currentTime - stats.lastAsked
             -- Add weight for cards not seen recently (more than 5 minutes)
-            if timeSinceLastAsked > 300 then
-                weight = weight * (1 + (timeSinceLastAsked / 300) * 0.5)
-            end
+            if timeSinceLastAsked > 300 then weight = weight * (1 + (timeSinceLastAsked / 300) * 0.5) end
         end
 
         -- Cards with low success rate get higher weight
@@ -165,7 +163,7 @@ function GameState:buildSpacedRepetitionOrder()
         end
 
         -- Add this position to the weighted pool
-        table.insert(weightedPool, {position = position, weight = weight})
+        table.insert(weightedPool, { position = position, weight = weight })
     end
 
     -- Sort by weight (highest difficulty first)
@@ -185,7 +183,7 @@ function GameState:buildSpacedRepetitionOrder()
     for _ = 1, weightedCount do
         if #remaining > 0 then
             -- Use weighted random selection biased towards beginning of array
-            local maxIndex = math.min(#remaining, 10)  -- Consider top 10 most difficult
+            local maxIndex = math.min(#remaining, 10) -- Consider top 10 most difficult
             local index = math.random(1, maxIndex)
             local position = remaining[index]
             table.insert(questionOrder, position)
@@ -205,7 +203,7 @@ function GameState:buildSpacedRepetitionOrder()
 
     -- Final shuffle to add some randomness while keeping difficult cards toward the beginning
     for _ = 1, 10 do
-        local j = math.random(1, 20)  -- Only shuffle within first 20 positions
+        local j = math.random(1, 20) -- Only shuffle within first 20 positions
         local k = math.random(1, 20)
         if j <= #questionOrder and k <= #questionOrder then
             questionOrder[j], questionOrder[k] = questionOrder[k], questionOrder[j]
@@ -242,42 +240,26 @@ function GameState:completeQuiz()
     self.currentSession:complete()
     self:saveCardStats()
 
-    if not self.currentSession.isReviewSession then
-        self.lastResult = self:recordHighScore()
-    end
+    if not self.currentSession.isReviewSession then self.lastResult = self:recordHighScore() end
 
     self.quizState = GameState.QUIZ_STATES.COMPLETE
 end
 
-function GameState:getCurrentPosition()
-    return self.currentSession:getCurrentQuestion().position
-end
+function GameState:getCurrentPosition() return self.currentSession:getCurrentQuestion().position end
 
-function GameState:getScore()
-    return self.currentSession.statistics.score
-end
+function GameState:getScore() return self.currentSession.statistics.score end
 
-function GameState:getQuestionsAnswered()
-    return self.currentSession.statistics.questionsAnswered
-end
+function GameState:getQuestionsAnswered() return self.currentSession.statistics.questionsAnswered end
 
-function GameState:getMistakes()
-    return self.currentSession.mistakes
-end
+function GameState:getMistakes() return self.currentSession.mistakes end
 
-function GameState:getFormattedTime()
-    return self.currentSession:getFormattedTime()
-end
+function GameState:getFormattedTime() return self.currentSession:getFormattedTime() end
 
-function GameState:getProgressString()
-    return self.currentSession:getProgressString()
-end
+function GameState:getProgressString() return self.currentSession:getProgressString() end
 
 -- Get score percentage
 function GameState:getScorePercentage()
-    if self:getQuestionsAnswered() == 0 then
-        return 0
-    end
+    if self:getQuestionsAnswered() == 0 then return 0 end
     return math.floor((self:getScore() / self:getQuestionsAnswered()) * 100)
 end
 
@@ -285,14 +267,12 @@ end
 function GameState.emptyHighScores()
     return {
         numberToCard = { bestScore = 0 },
-        cardToNumber = { bestScore = 0 }
+        cardToNumber = { bestScore = 0 },
     }
 end
 
 function GameState:getCurrentModeHighScores()
-    if self.currentSession.mode == GameState.MODES.QUIZ_NUMBER_TO_CARD then
-        return self.highScores.numberToCard
-    end
+    if self.currentSession.mode == GameState.MODES.QUIZ_NUMBER_TO_CARD then return self.highScores.numberToCard end
     return self.highScores.cardToNumber
 end
 
@@ -304,9 +284,7 @@ function GameState:recordHighScore()
     local elapsedTime = self.currentSession:getElapsedTime()
 
     local previousBest = nil
-    if modeScores.bestTime then
-        previousBest = { bestScore = modeScores.bestScore, bestTime = modeScores.bestTime }
-    end
+    if modeScores.bestTime then previousBest = { bestScore = modeScores.bestScore, bestTime = modeScores.bestTime } end
 
     local isNewBest = previousBest == nil
         or score > previousBest.bestScore
@@ -322,9 +300,7 @@ function GameState:recordHighScore()
 end
 
 -- Save high scores to persistent storage
-function GameState:saveHighScores()
-    pd.datastore.write(self.highScores, "highscores")
-end
+function GameState:saveHighScores() pd.datastore.write(self.highScores, "highscores") end
 
 -- Save settings including last selected menu mode
 function GameState:saveSettings()
@@ -332,7 +308,7 @@ function GameState:saveSettings()
         soundEnabled = self.soundEnabled,
         crankSensitivity = self.crankSensitivity,
         lastSelectedMenuMode = self.lastSelectedMenuMode,
-        simonMaxRound = self.simonMode.maxRound
+        simonMaxRound = self.simonMode.maxRound,
     }
     pd.datastore.write(settings, "settings")
 end
@@ -341,7 +317,7 @@ end
 function GameState:loadSettings()
     local settings = pd.datastore.read("settings")
     if settings then
-        self.soundEnabled = settings.soundEnabled ~= false  -- Default to true
+        self.soundEnabled = settings.soundEnabled ~= false -- Default to true
         self.crankSensitivity = settings.crankSensitivity or 1.0
         self.lastSelectedMenuMode = settings.lastSelectedMenuMode or 1
         self.simonMode.maxRound = settings.simonMaxRound or 0
@@ -352,9 +328,7 @@ end
 -- stored an infinite bestTime for modes with no finished quiz; those load as empty.
 function GameState:loadHighScores()
     local savedScores = pd.datastore.read("highscores")
-    if not savedScores then
-        return
-    end
+    if not savedScores then return end
 
     for mode, emptyScores in pairs(GameState.emptyHighScores()) do
         local saved = savedScores[mode]
@@ -364,16 +338,12 @@ function GameState:loadHighScores()
 end
 
 -- Save card statistics for spaced repetition
-function GameState:saveCardStats()
-    pd.datastore.write(self.cardStats, "cardstats")
-end
+function GameState:saveCardStats() pd.datastore.write(self.cardStats, "cardstats") end
 
 -- Load card statistics from persistent storage
 function GameState:loadCardStats()
     local savedStats = pd.datastore.read("cardstats")
-    if savedStats then
-        self.cardStats = savedStats
-    end
+    if savedStats then self.cardStats = savedStats end
 end
 
 -- Update card statistics after answering a question
@@ -400,9 +370,7 @@ end
 -- Get success rate for a specific position
 function GameState:getCardSuccessRate(position)
     local stats = self.cardStats[position]
-    if stats and stats.timesAsked > 0 then
-        return stats.timesCorrect / stats.timesAsked
-    end
+    if stats and stats.timesAsked > 0 then return stats.timesCorrect / stats.timesAsked end
     return 0
 end
 
@@ -415,7 +383,7 @@ function GameState:resetCardStats()
             timesIncorrect = 0,
             lastAsked = 0,
             streak = 0,
-            difficulty = 1.0
+            difficulty = 1.0,
         }
     end
     self:saveCardStats()
@@ -430,16 +398,12 @@ end
 -- The system menu opened, the device locked, or the game is closing: stop the quiz clock
 -- and write anything not yet saved, since the game may not come back.
 function GameState:suspend()
-    if self.currentSession then
-        self.currentSession:pauseTimer()
-    end
+    if self.currentSession then self.currentSession:pauseTimer() end
     self:saveCardStats()
 end
 
 function GameState:unsuspend()
-    if self.currentSession then
-        self.currentSession:resumeTimer()
-    end
+    if self.currentSession then self.currentSession:resumeTimer() end
 end
 
 -- Start mistake review mode
@@ -470,18 +434,14 @@ end
 
 -- The quiz being answered. During mistake review this is the mode of the quiz under review.
 function GameState:getQuizMode()
-    if self.currentMode == GameState.MODES.MISTAKE_REVIEW then
-        return self.mistakeReviewMode.originalMode
-    end
+    if self.currentMode == GameState.MODES.MISTAKE_REVIEW then return self.mistakeReviewMode.originalMode end
     return self.currentMode
 end
 
 -- Advance the study phase of a mistake review. After the last mistake, the re-quiz session
 -- built by MistakeReviewMode becomes the current session.
 function GameState:advanceMistakeStudy()
-    if self.mistakeReviewMode:nextStudyCard() then
-        return
-    end
+    if self.mistakeReviewMode:nextStudyCard() then return end
 
     self.currentSession = self.mistakeReviewMode.quizSession
     self.quizState = GameState.QUIZ_STATES.QUESTION
@@ -492,6 +452,4 @@ function GameState:advanceMistakeStudy()
 end
 
 -- Get session summary
-function GameState:getSessionSummary()
-    return self.currentSession:getSummary()
-end
+function GameState:getSessionSummary() return self.currentSession:getSummary() end

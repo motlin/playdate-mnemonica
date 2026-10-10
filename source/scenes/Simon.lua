@@ -34,17 +34,13 @@ local game
 local displayTimer
 local dialQuestionNumber
 
-local function playShownCard()
-    Assets.playCardTones(Deck.mnemonicaStack[game:shownPosition()])
-end
+local function playShownCard() Assets.playCardTones(Deck.mnemonicaStack[game:shownPosition()]) end
 
 local function startGame()
     game = SimonGame:new({
         bestRounds = gameState.simonMode.maxRound,
         randomPosition = function() return math.random(1, 52) end,
-        randomInputKind = function()
-            return math.random() < 0.5 and INPUT_KINDS.CARD or INPUT_KINDS.POSITION
-        end,
+        randomInputKind = function() return math.random() < 0.5 and INPUT_KINDS.CARD or INPUT_KINDS.POSITION end,
     })
     SimonScene.game = game
     displayTimer = 0
@@ -66,9 +62,7 @@ local function dialForCurrentQuestion()
     return SimonScene.dial
 end
 
-local function roundLabel()
-    return "Round " .. game.round
-end
+local function roundLabel() return "Round " .. game.round end
 
 local function drawShowing()
     gfx.clear()
@@ -135,9 +129,7 @@ end
 local function showNextCard()
     displayTimer = 0
     game:showNext()
-    if game.phase == PHASES.SHOWING then
-        playShownCard()
-    end
+    if game.phase == PHASES.SHOWING then playShownCard() end
 end
 
 local function submitAnswer()
@@ -204,9 +196,7 @@ local function updateFeedback()
         else
             displayTimer = 0
             game:continue()
-            if game.phase == PHASES.SHOWING then
-                playShownCard()
-            end
+            if game.phase == PHASES.SHOWING then playShownCard() end
         end
     end
 end
@@ -216,7 +206,7 @@ local phaseUpdates = {
     [PHASES.SHOWING] = updateShowing,
     [PHASES.WAITING] = updateWaiting,
     [PHASES.INPUT] = updateInput,
-    [PHASES.FEEDBACK] = updateFeedback
+    [PHASES.FEEDBACK] = updateFeedback,
 }
 
 function SimonScene.enter()

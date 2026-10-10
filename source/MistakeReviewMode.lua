@@ -8,8 +8,8 @@ MistakeReviewMode.__index = MistakeReviewMode
 
 -- Review phases
 MistakeReviewMode.PHASES = {
-    STUDY = "study",     -- Phase 1: Study the mistake cards
-    QUIZ = "quiz"        -- Phase 2: Re-quiz on mistakes
+    STUDY = "study", -- Phase 1: Study the mistake cards
+    QUIZ = "quiz", -- Phase 2: Re-quiz on mistakes
 }
 
 function MistakeReviewMode:new(mistakes, originalMode)
@@ -17,29 +17,28 @@ function MistakeReviewMode:new(mistakes, originalMode)
 
     -- Store the mistakes and original quiz mode
     review.mistakes = mistakes
-    review.originalMode = originalMode  -- QUIZ_NUMBER_TO_CARD or QUIZ_CARD_TO_NUMBER
+    review.originalMode = originalMode -- QUIZ_NUMBER_TO_CARD or QUIZ_CARD_TO_NUMBER
 
     -- Current phase
     review.currentPhase = MistakeReviewMode.PHASES.STUDY
 
     -- Study phase state
-    review.studyIndex = 1  -- Current mistake being studied (1-based)
+    review.studyIndex = 1 -- Current mistake being studied (1-based)
     review.studyStartTime = pd.getCurrentTimeMilliseconds() / 1000
 
     -- Quiz phase state (will be initialized when entering quiz phase)
     review.quizSession = nil
 
     -- Track overall review performance
-    review.studyTimePerCard = {}  -- Time spent studying each card
-    review.quizResults = {}  -- Results from the re-quiz
+    review.studyTimePerCard = {} -- Time spent studying each card
+    review.quizResults = {} -- Results from the re-quiz
 
     return review
 end
 
 -- Get the current mistake being studied
 function MistakeReviewMode:getCurrentStudyMistake()
-    if self.currentPhase == MistakeReviewMode.PHASES.STUDY and
-       self.studyIndex <= #self.mistakes then
+    if self.currentPhase == MistakeReviewMode.PHASES.STUDY and self.studyIndex <= #self.mistakes then
         return self.mistakes[self.studyIndex]
     end
     return nil
@@ -47,9 +46,7 @@ end
 
 -- Move to next study card. Returns false once the study phase is over and the re-quiz is ready.
 function MistakeReviewMode:nextStudyCard()
-    if self.currentPhase ~= MistakeReviewMode.PHASES.STUDY then
-        return false
-    end
+    if self.currentPhase ~= MistakeReviewMode.PHASES.STUDY then return false end
 
     -- Record time spent on current card
     local currentTime = pd.getCurrentTimeMilliseconds() / 1000
@@ -70,9 +67,7 @@ end
 
 -- Move to previous study card
 function MistakeReviewMode:previousStudyCard()
-    if self.currentPhase ~= MistakeReviewMode.PHASES.STUDY then
-        return false
-    end
+    if self.currentPhase ~= MistakeReviewMode.PHASES.STUDY then return false end
 
     if self.studyIndex > 1 then
         self.studyIndex = self.studyIndex - 1
@@ -101,7 +96,7 @@ function MistakeReviewMode:startQuizPhase()
 
     -- Create the review quiz session
     self.quizSession = QuizSession:new(self.originalMode, #positions)
-    self.quizSession:initializeQuestions(positions, true)  -- Shuffle the mistakes
+    self.quizSession:initializeQuestions(positions, true) -- Shuffle the mistakes
     self.quizSession.isReviewSession = true
     self.quizSession.reviewType = "mistake_review"
 
@@ -115,14 +110,14 @@ function MistakeReviewMode:getProgress()
             phase = "study",
             current = self.studyIndex,
             total = #self.mistakes,
-            text = string.format("Studying Mistake %d of %d", self.studyIndex, #self.mistakes)
+            text = string.format("Studying Mistake %d of %d", self.studyIndex, #self.mistakes),
         }
     elseif self.currentPhase == MistakeReviewMode.PHASES.QUIZ and self.quizSession then
         return {
             phase = "quiz",
             current = self.quizSession.currentQuestionIndex,
             total = self.quizSession.totalQuestions,
-            text = self.quizSession:getProgressString()
+            text = self.quizSession:getProgressString(),
         }
     end
 
@@ -130,15 +125,13 @@ function MistakeReviewMode:getProgress()
         phase = self.currentPhase,
         current = 0,
         total = 0,
-        text = ""
+        text = "",
     }
 end
 
 -- Check if review is complete
 function MistakeReviewMode:isComplete()
-    return self.currentPhase == MistakeReviewMode.PHASES.QUIZ and
-           self.quizSession and
-           self.quizSession.isComplete
+    return self.currentPhase == MistakeReviewMode.PHASES.QUIZ and self.quizSession and self.quizSession.isComplete
 end
 
 -- Get review summary
@@ -146,7 +139,7 @@ function MistakeReviewMode:getSummary()
     local summary = {
         mistakesReviewed = #self.mistakes,
         studyTimeTotal = 0,
-        averageStudyTime = 0
+        averageStudyTime = 0,
     }
 
     -- Calculate study time stats
@@ -154,9 +147,7 @@ function MistakeReviewMode:getSummary()
         summary.studyTimeTotal = summary.studyTimeTotal + time
     end
 
-    if #self.studyTimePerCard > 0 then
-        summary.averageStudyTime = summary.studyTimeTotal / #self.studyTimePerCard
-    end
+    if #self.studyTimePerCard > 0 then summary.averageStudyTime = summary.studyTimeTotal / #self.studyTimePerCard end
 
     -- Add quiz results if available
     if self.quizSession then
@@ -164,7 +155,7 @@ function MistakeReviewMode:getSummary()
         summary.quizScore = self.quizSession.statistics.score
         summary.quizTotal = self.quizSession.totalQuestions
         summary.quizAccuracy = self.quizSession.statistics.accuracy
-        summary.improvedMistakes = {}  -- Track which mistakes were corrected in review
+        summary.improvedMistakes = {} -- Track which mistakes were corrected in review
 
         -- Check which mistakes were corrected
         if self.quizSession.isComplete then
@@ -177,9 +168,7 @@ function MistakeReviewMode:getSummary()
                         break
                     end
                 end
-                if wasCorrect then
-                    table.insert(summary.improvedMistakes, mistake.position)
-                end
+                if wasCorrect then table.insert(summary.improvedMistakes, mistake.position) end
             end
         end
     end

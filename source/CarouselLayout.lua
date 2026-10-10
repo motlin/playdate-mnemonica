@@ -36,7 +36,7 @@ function CarouselLayout.visibleItems(scrollPosition, itemCount, centerX, halfWid
             items[#items + 1] = {
                 index = (candidate - 1) % itemCount + 1,
                 x = x,
-                scale = candidate == nearest and 2 or 1
+                scale = candidate == nearest and 2 or 1,
             }
         end
     end
@@ -53,9 +53,7 @@ end
 -- The result stays within half an item of the valid range so it never drifts.
 function CarouselLayout.approach(scrollPosition, target, fraction, itemCount)
     local delta = (target - scrollPosition + itemCount / 2) % itemCount - itemCount / 2
-    if math.abs(delta) < SETTLE_DISTANCE then
-        return target
-    end
+    if math.abs(delta) < SETTLE_DISTANCE then return target end
 
     local nextPosition = scrollPosition + delta * fraction
     if nextPosition > itemCount + 0.5 then

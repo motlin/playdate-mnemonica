@@ -3,5 +3,5 @@
 import "GameState"
 
 App = {
-    gameState = GameState:new()
+    gameState = GameState:new(),
 }

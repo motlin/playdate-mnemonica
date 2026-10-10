@@ -1,4 +1,3 @@
-
 -- ===== INPUT DEBUG OVERLAY (appended to a build copy of main.lua; never shipped) =====
 -- Shows what the hardware reports, on top of the running game: how many presses of each
 -- button the game has seen, crank travel, and the selected menu row. It wraps the input
@@ -10,7 +9,9 @@ do
 
     local buttons = { pd.kButtonUp, pd.kButtonDown, pd.kButtonLeft, pd.kButtonRight, pd.kButtonA, pd.kButtonB }
     local pressCounts, countedThisFrame = {}, {}
-    for _, button in ipairs(buttons) do pressCounts[button] = 0 end
+    for _, button in ipairs(buttons) do
+        pressCounts[button] = 0
+    end
 
     local crankTotal, crankLast = 0, 0
     local rowChanges, lastRow = 0, nil

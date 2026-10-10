@@ -16,7 +16,9 @@ describe("SimonGame", function()
     end
 
     local function watchSequence(game)
-        while game.phase == SimonGame.PHASES.SHOWING do game:showNext() end
+        while game.phase == SimonGame.PHASES.SHOWING do
+            game:showNext()
+        end
         game:beginInput()
     end
 

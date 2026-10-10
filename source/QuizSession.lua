@@ -10,7 +10,7 @@ function QuizSession:new(mode, totalQuestions)
     local session = setmetatable({}, self)
 
     -- Session metadata
-    session.mode = mode  -- Quiz mode (number_to_card or card_to_number)
+    session.mode = mode -- Quiz mode (number_to_card or card_to_number)
     session.totalQuestions = totalQuestions or 52
     session.startTime = pd.getCurrentTimeMilliseconds() / 1000
     session.endTime = nil
@@ -18,18 +18,18 @@ function QuizSession:new(mode, totalQuestions)
 
     -- Timer pause support
     session.isPaused = false
-    session.pausedTime = 0  -- Total time spent paused
-    session.pauseStartTime = nil  -- When current pause started
+    session.pausedTime = 0 -- Total time spent paused
+    session.pauseStartTime = nil -- When current pause started
 
     -- Question management
-    session.questions = {}  -- Array of question objects
+    session.questions = {} -- Array of question objects
     session.currentQuestionIndex = 1
 
     -- Answer tracking
-    session.answers = {}  -- Array of answer objects indexed by question number
+    session.answers = {} -- Array of answer objects indexed by question number
 
     -- Mistake tracking
-    session.mistakes = {}  -- Array of mistake objects for review
+    session.mistakes = {} -- Array of mistake objects for review
 
     -- Statistics
     session.statistics = {
@@ -38,7 +38,7 @@ function QuizSession:new(mode, totalQuestions)
         questionsIncorrect = 0,
         score = 0,
         elapsedTime = 0,
-        accuracy = 0  -- Percentage
+        accuracy = 0, -- Percentage
     }
 
     return session
@@ -65,9 +65,9 @@ function QuizSession:initializeQuestions(positions, shuffleOrder)
         for i, position in ipairs(shuffled) do
             self.questions[i] = {
                 index = i,
-                position = position,  -- The Mnemonica stack position (1-52)
-                askedAt = nil,  -- Timestamp when question was asked
-                answeredAt = nil  -- Timestamp when answer was submitted
+                position = position, -- The Mnemonica stack position (1-52)
+                askedAt = nil, -- Timestamp when question was asked
+                answeredAt = nil, -- Timestamp when answer was submitted
             }
         end
     else
@@ -77,7 +77,7 @@ function QuizSession:initializeQuestions(positions, shuffleOrder)
                 index = i,
                 position = position,
                 askedAt = nil,
-                answeredAt = nil
+                answeredAt = nil,
             }
         end
     end
@@ -90,9 +90,7 @@ function QuizSession:getCurrentQuestion()
     if self.currentQuestionIndex <= #self.questions then
         local question = self.questions[self.currentQuestionIndex]
         -- Mark as asked if not already
-        if not question.askedAt then
-            question.askedAt = pd.getCurrentTimeMilliseconds() / 1000
-        end
+        if not question.askedAt then question.askedAt = pd.getCurrentTimeMilliseconds() / 1000 end
         return question
     end
     return nil
@@ -119,7 +117,7 @@ function QuizSession:recordAnswer(userAnswer, correctAnswer)
         correctAnswer = correctAnswer,
         isCorrect = isCorrect,
         timeTaken = timeTaken,
-        answeredAt = answeredAt
+        answeredAt = answeredAt,
     }
 
     -- Store answer
@@ -138,7 +136,7 @@ function QuizSession:recordAnswer(userAnswer, correctAnswer)
             position = question.position,
             correctAnswer = correctAnswer,
             userAnswer = userAnswer,
-            questionIndex = self.currentQuestionIndex
+            questionIndex = self.currentQuestionIndex,
         })
     end
 
@@ -198,9 +196,7 @@ function QuizSession:getElapsedTime()
         local activeTime = currentTime - self.startTime - self.pausedTime
 
         -- If currently paused, don't count time since pause started
-        if self.isPaused and self.pauseStartTime then
-            activeTime = activeTime - (currentTime - self.pauseStartTime)
-        end
+        if self.isPaused and self.pauseStartTime then activeTime = activeTime - (currentTime - self.pauseStartTime) end
 
         return activeTime
     end
@@ -220,14 +216,12 @@ function QuizSession:getProgressString()
 end
 
 -- Check if session has mistakes to review
-function QuizSession:hasMistakes()
-    return #self.mistakes > 0
-end
+function QuizSession:hasMistakes() return #self.mistakes > 0 end
 
 -- Get mistake positions for review
 function QuizSession:getMistakePositions()
     local positions = {}
-    local seen = {}  -- Avoid duplicates
+    local seen = {} -- Avoid duplicates
 
     for _, mistake in ipairs(self.mistakes) do
         if not seen[mistake.position] then
@@ -253,6 +247,6 @@ function QuizSession:getSummary()
         formattedTime = self:getFormattedTime(),
         mistakes = self.mistakes,
         hasMistakes = self:hasMistakes(),
-        isComplete = self.isComplete
+        isComplete = self.isComplete,
     }
 end

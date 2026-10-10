@@ -46,19 +46,13 @@ local function draw()
     end
 
     gfx.setColor(gfx.kColorBlack)
-    if scrollOffset > 0 then
-        drawScrollArrow(ROW_TOP + 4, true)
-    end
-    if lastVisible < #mistakes then
-        drawScrollArrow(ROW_TOP + maxVisibleLines * ROW_HEIGHT - 14, false)
-    end
+    if scrollOffset > 0 then drawScrollArrow(ROW_TOP + 4, true) end
+    if lastVisible < #mistakes then drawScrollArrow(ROW_TOP + maxVisibleLines * ROW_HEIGHT - 14, false) end
 
     Layout.drawFooter(FOOTER_HINTS, false)
 end
 
-function MistakeListScene.enter()
-    scrollOffset = 0
-end
+function MistakeListScene.enter() scrollOffset = 0 end
 
 function MistakeListScene.update()
     draw()

@@ -4,9 +4,7 @@ import "CrankSelector"
 describe("CrankSelector", function()
     local DEGREES_PER_CARD <const> = 360 / 52
 
-    it("starts on the first item", function()
-        assert.are.equal(1, CrankSelector:new(52, DEGREES_PER_CARD).index)
-    end)
+    it("starts on the first item", function() assert.are.equal(1, CrankSelector:new(52, DEGREES_PER_CARD).index) end)
 
     it("visits every item once per full rotation and ends where it started", function()
         local selector = CrankSelector:new(52, DEGREES_PER_CARD)
@@ -17,7 +15,9 @@ describe("CrankSelector", function()
             visited[selector.index] = true
         end
 
-        for index = 1, 52 do assert.is_true(visited[index], "never reached " .. index) end
+        for index = 1, 52 do
+            assert.is_true(visited[index], "never reached " .. index)
+        end
         assert.are.equal(1, selector.index)
     end)
 

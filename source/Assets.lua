@@ -36,9 +36,7 @@ local function getCachedScaledCard(cardIndex, scale)
     local roundedScale = math.floor(scale * 5 + 0.5) / 5
     local cacheKey = cardIndex .. "_" .. roundedScale
 
-    if scaledCardCache[cacheKey] then
-        return scaledCardCache[cacheKey]
-    end
+    if scaledCardCache[cacheKey] then return scaledCardCache[cacheKey] end
 
     local cacheCount = 0
     for _ in pairs(scaledCardCache) do
@@ -54,9 +52,7 @@ local function getCachedScaledCard(cardIndex, scale)
     return scaledCardCache[cacheKey]
 end
 
-function Assets.getCardImage(cardName)
-    return Assets.cardImages[Deck.spriteIndex[cardName]]
-end
+function Assets.getCardImage(cardName) return Assets.cardImages[Deck.spriteIndex[cardName]] end
 
 -- Draw a card centered at a position
 function Assets.drawCard(cardName, x, y, scale)
@@ -105,5 +101,10 @@ function Assets.playCardTones(cardName)
 
     local now = snd.getCurrentTime()
     suitSynth:playNote(CardTones.suitFrequency(cardName), SUIT_TONE_VOLUME, SUIT_TONE_SECONDS, now)
-    rankSynth:playMIDINote(CardTones.rankMidiNote(cardName), RANK_NOTE_VOLUME, RANK_NOTE_SECONDS, now + SUIT_TONE_SECONDS + 0.02)
+    rankSynth:playMIDINote(
+        CardTones.rankMidiNote(cardName),
+        RANK_NOTE_VOLUME,
+        RANK_NOTE_SECONDS,
+        now + SUIT_TONE_SECONDS + 0.02
+    )
 end
