@@ -32,8 +32,6 @@ function stub.reset()
     stub.writeCounts = {}
 end
 
-function stub.advanceSeconds(seconds)
-    stub.clockMilliseconds = stub.clockMilliseconds + seconds * 1000
-end
+function stub.advanceSeconds(seconds) stub.clockMilliseconds = stub.clockMilliseconds + seconds * 1000 end
 
 return stub

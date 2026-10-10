@@ -52,7 +52,9 @@ describe("GameState high scores", function()
         local gameState = GameState:new()
         playQuiz(gameState, NUMBER_TO_CARD, 1, 100)
         gameState:startMistakeReview()
-        for _ = 1, 51 do gameState:advanceMistakeStudy() end
+        for _ = 1, 51 do
+            gameState:advanceMistakeStudy()
+        end
 
         for _ = 1, 51 do
             gameState.correctAnswer = "RIGHT"

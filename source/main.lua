@@ -20,9 +20,7 @@ import "scenes/Credits"
 local pd <const> = playdate
 local gameState <const> = App.gameState
 
-function playdate.update()
-    SceneManager.update()
-end
+function playdate.update() SceneManager.update() end
 
 -- The system menu, a locked device, and quitting all stop the quiz clock and save progress
 function playdate.gameWillPause() gameState:suspend() end

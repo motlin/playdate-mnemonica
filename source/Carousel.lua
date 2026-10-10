@@ -48,9 +48,12 @@ function Carousel:drawRail()
     local markerX = math.floor(railLeft + markerItem * self.tickSpacing + 0.5)
     local markerTop = area.railY + 2
     gfx.fillTriangle(
-        markerX, markerTop,
-        markerX - RAIL_MARKER_SIZE, markerTop + RAIL_MARKER_SIZE + 1,
-        markerX + RAIL_MARKER_SIZE, markerTop + RAIL_MARKER_SIZE + 1
+        markerX,
+        markerTop,
+        markerX - RAIL_MARKER_SIZE,
+        markerTop + RAIL_MARKER_SIZE + 1,
+        markerX + RAIL_MARKER_SIZE,
+        markerTop + RAIL_MARKER_SIZE + 1
     )
 end
 

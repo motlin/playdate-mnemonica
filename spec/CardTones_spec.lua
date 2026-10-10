@@ -12,9 +12,10 @@ describe("CardTones", function()
         assert.are.equal(72, CardTones.rankMidiNote("KH"))
     end)
 
-    it("reads the rank of a ten, which is two characters", function()
-        assert.are.equal(MIDDLE_C + 9, CardTones.rankMidiNote("10D"))
-    end)
+    it(
+        "reads the rank of a ten, which is two characters",
+        function() assert.are.equal(MIDDLE_C + 9, CardTones.rankMidiNote("10D")) end
+    )
 
     it("gives the four suits the four tones of the original Simon", function()
         local tones = {
@@ -27,7 +28,8 @@ describe("CardTones", function()
         assert.are.same({ 207.652, 247.942, 311.127, 415.305 }, tones)
     end)
 
-    it("uses the same suit tone whatever the rank", function()
-        assert.are.equal(CardTones.suitFrequency("2C"), CardTones.suitFrequency("10C"))
-    end)
+    it(
+        "uses the same suit tone whatever the rank",
+        function() assert.are.equal(CardTones.suitFrequency("2C"), CardTones.suitFrequency("10C")) end
+    )
 end)

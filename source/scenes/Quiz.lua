@@ -14,9 +14,7 @@ local sounds <const> = Assets.sounds
 
 QuizScene = { hasQuizInProgress = true }
 
-local function isNumberToCard()
-    return gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD
-end
+local function isNumberToCard() return gameState:getQuizMode() == GameState.MODES.QUIZ_NUMBER_TO_CARD end
 
 -- A fresh dial starts on the first item with no leftover rotation.
 function QuizScene.resetSelection()
@@ -51,10 +49,19 @@ local function draw()
     local progress = session.currentQuestionIndex .. "/" .. session.totalQuestions
 
     if isNumberToCard() then
-        Layout.drawTitleBar("Position " .. gameState:getCurrentPosition() .. "?", progress, gameState:getFormattedTime())
+        Layout.drawTitleBar(
+            "Position " .. gameState:getCurrentPosition() .. "?",
+            progress,
+            gameState:getFormattedTime()
+        )
     else
         Layout.drawTitleBar("Which position?", progress, gameState:getFormattedTime())
-        Assets.drawCard(Deck.mnemonicaStack[gameState:getCurrentPosition()], QUESTION_CARD_X, Layout.CONTENT_CENTER_Y - 7, 2)
+        Assets.drawCard(
+            Deck.mnemonicaStack[gameState:getCurrentPosition()],
+            QUESTION_CARD_X,
+            Layout.CONTENT_CENTER_Y - 7,
+            2
+        )
     end
 
     QuizScene.dial:draw()

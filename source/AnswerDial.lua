@@ -23,9 +23,7 @@ AnswerDial.FULL_WIDTH = { centerX = 200, centerY = 114, halfWidth = 200, railY =
 -- The right-hand side, leaving room for a double-size card on the left.
 AnswerDial.RIGHT_SIDE = { centerX = 270, centerY = 114, halfWidth = 130, railY = RAIL_Y }
 
-local function playTick()
-    Assets.playSound(Assets.sounds.crankTick)
-end
+local function playTick() Assets.playSound(Assets.sounds.crankTick) end
 
 local function new(dpadSteps, groupSize, area, drawItem)
     local dial = setmetatable({}, AnswerDial)
@@ -36,9 +34,12 @@ end
 
 -- Cards in new-deck order; Left/Right jump a suit, and the rail marks where each suit starts.
 function AnswerDial.newCardDial(area)
-    return new({ up = -1, down = 1, left = -13, right = 13 }, 13, area, function(index, x, y, scale)
-        Assets.drawCard(Deck.uspccOrder[index], x, y, scale)
-    end)
+    return new(
+        { up = -1, down = 1, left = -13, right = 13 },
+        13,
+        area,
+        function(index, x, y, scale) Assets.drawCard(Deck.uspccOrder[index], x, y, scale) end
+    )
 end
 
 local TILE_WIDTH <const> = 50
@@ -69,18 +70,10 @@ function AnswerDial.newNumberDial(area)
     return new({ up = -1, down = 1, left = -10, right = 10 }, 10, area, drawNumberTile)
 end
 
-function AnswerDial:getSelection()
-    return self.picker:getSelection()
-end
+function AnswerDial:getSelection() return self.picker:getSelection() end
 
-function AnswerDial:select(index)
-    self.picker:select(index)
-end
+function AnswerDial:select(index) self.picker:select(index) end
 
-function AnswerDial:update(sensitivity)
-    self.picker:update(sensitivity)
-end
+function AnswerDial:update(sensitivity) self.picker:update(sensitivity) end
 
-function AnswerDial:draw()
-    self.carousel:draw(self.picker:getSelection())
-end
+function AnswerDial:draw() self.carousel:draw(self.picker:getSelection()) end

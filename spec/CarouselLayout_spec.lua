@@ -4,7 +4,9 @@ import "CarouselLayout"
 describe("CarouselLayout", function()
     local function byIndex(items)
         local found = {}
-        for _, item in ipairs(items) do found[item.index] = item end
+        for _, item in ipairs(items) do
+            found[item.index] = item
+        end
         return found
     end
 
@@ -75,7 +77,8 @@ describe("CarouselLayout", function()
         assert.are.equal(12, CarouselLayout.approach(10, 14, 0.5, 52, 200, 200))
     end)
 
-    it("lands exactly on the selection once it is close", function()
-        assert.are.equal(14, CarouselLayout.approach(13.99, 14, 0.5, 52, 200, 200))
-    end)
+    it(
+        "lands exactly on the selection once it is close",
+        function() assert.are.equal(14, CarouselLayout.approach(13.99, 14, 0.5, 52, 200, 200)) end
+    )
 end)

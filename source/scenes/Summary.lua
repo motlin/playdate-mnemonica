@@ -12,7 +12,7 @@ local sounds <const> = Assets.sounds
 
 SummaryScene = {
     selectedOption = 1,
-    REVIEW_MISTAKES_OPTION = 2
+    REVIEW_MISTAKES_OPTION = 2,
 }
 
 local PLAY_AGAIN <const> = "Play Again"
@@ -20,9 +20,7 @@ local REVIEW_MISTAKES <const> = "Review Mistakes"
 local MAIN_MENU <const> = "Main Menu"
 
 local function getOptions()
-    if #gameState:getMistakes() > 0 then
-        return { PLAY_AGAIN, REVIEW_MISTAKES, MAIN_MENU }
-    end
+    if #gameState:getMistakes() > 0 then return { PLAY_AGAIN, REVIEW_MISTAKES, MAIN_MENU } end
     return { PLAY_AGAIN, MAIN_MENU }
 end
 
@@ -60,9 +58,7 @@ local function draw()
 end
 
 -- Returning from the mistakes list passes the option to keep selected.
-function SummaryScene.enter(selectedOption)
-    SummaryScene.selectedOption = selectedOption or 1
-end
+function SummaryScene.enter(selectedOption) SummaryScene.selectedOption = selectedOption or 1 end
 
 function SummaryScene.update()
     draw()
@@ -72,15 +68,11 @@ function SummaryScene.update()
     if pd.buttonJustPressed(pd.kButtonUp) then
         Assets.playSound(sounds.menuMove)
         SummaryScene.selectedOption = SummaryScene.selectedOption - 1
-        if SummaryScene.selectedOption < 1 then
-            SummaryScene.selectedOption = #options
-        end
+        if SummaryScene.selectedOption < 1 then SummaryScene.selectedOption = #options end
     elseif pd.buttonJustPressed(pd.kButtonDown) then
         Assets.playSound(sounds.menuMove)
         SummaryScene.selectedOption = SummaryScene.selectedOption + 1
-        if SummaryScene.selectedOption > #options then
-            SummaryScene.selectedOption = 1
-        end
+        if SummaryScene.selectedOption > #options then SummaryScene.selectedOption = 1 end
     elseif pd.buttonJustPressed(pd.kButtonA) then
         Assets.playSound(sounds.buttonPress)
 

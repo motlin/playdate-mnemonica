@@ -1,0 +1,4 @@
+# Vendored Playdate SDK type stubs stay byte-identical to upstream.
+.vscode/playdate-luacats/
+# Per-clone Claude instructions are untracked.
+CLAUDE.local.md
