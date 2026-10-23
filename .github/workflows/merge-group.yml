@@ -36,7 +36,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: reviewdog/action-markdownlint@a223028b797326efe9d3c9b55e24d740480c3352 # v0.31.2
+      - uses: reviewdog/action-markdownlint@b85a623ec721cb42896c485633f527cbd2d58063 # v0.31.5
         with:
           reporter: github-pr-check
           fail_on_error: true
